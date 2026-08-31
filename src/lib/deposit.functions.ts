@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types predate the admin migration. */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -14,13 +15,25 @@ export const getDepositAddress = createServerFn({ method: "POST" })
   .inputValidator((d: { asset: Asset }) =>
     z.object({ asset: z.enum(["BTC", "ETH", "SOL", "USDT"]) }).parse(d),
   )
-  .handler(async ({ data }) => ({ address: DEPOSIT_ADDRESSES[data.asset] }));
+  .handler(async ({ data }) => {
+    const { data: settings } = await (supabaseAdmin as any)
+      .from("platform_settings")
+      .select("wallet_address")
+      .eq("id", true)
+      .single();
+    return { address: settings?.wallet_address || DEPOSIT_ADDRESSES[data.asset] };
+  });
 
 export const confirmDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data, context }) => {
     const { userId } = context;
+    const { data: settings } = await (supabaseAdmin as any)
+      .from("platform_settings")
+      .select("wallet_address")
+      .eq("id", true)
+      .single();
     const { data: tx, error } = await supabaseAdmin
       .from("transactions")
       .insert({
@@ -29,7 +42,7 @@ export const confirmDeposit = createServerFn({ method: "POST" })
         amount: data.amount,
         asset: data.asset,
         status: "pending_confirmation",
-        address: DEPOSIT_ADDRESSES[data.asset],
+        address: settings?.wallet_address || DEPOSIT_ADDRESSES[data.asset],
         metadata: { source: "user_confirm" },
       })
       .select()

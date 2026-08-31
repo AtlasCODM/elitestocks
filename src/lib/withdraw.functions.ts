@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types predate the admin migration. */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -14,6 +15,20 @@ export const createWithdrawal = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data, context }) => {
+    const { data: settings, error: settingsError } = await (supabaseAdmin as any)
+      .from("platform_settings")
+      .select("min_withdrawal,max_withdrawal")
+      .eq("id", true)
+      .single();
+    if (settingsError) throw new Error("Unable to load withdrawal limits");
+    if (
+      data.amount < Number(settings.min_withdrawal) ||
+      data.amount > Number(settings.max_withdrawal)
+    ) {
+      throw new Error(
+        `Withdrawal must be between ${settings.min_withdrawal} and ${settings.max_withdrawal}`,
+      );
+    }
     const { userId } = context;
     // Lock funds immediately by debiting the wallet.
     await adjustBalance(userId, data.asset, -data.amount);
