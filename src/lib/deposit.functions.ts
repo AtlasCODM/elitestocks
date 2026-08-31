@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { DEPOSIT_ADDRESSES, type Asset } from "./platform.server";
+import { DEPOSIT_ADDRESSES, type Asset } from "@/lib/platform.server";
 
 const Input = z.object({
   asset: z.enum(["BTC", "ETH", "SOL", "USDT"]),
