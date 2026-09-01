@@ -19,9 +19,11 @@ function AdminPage() {
   const fetchAdmin = useServerFn(getAdminState);
   const [tab, setTab] = useState<Tab>("overview");
   const query = useQuery({
-    queryKey: ["admin-state"],
+    queryKey: ["admin-state", user?.id],
     queryFn: () => fetchAdmin(),
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: "always",
     refetchInterval: 15000,
   });
   useEffect(() => {
