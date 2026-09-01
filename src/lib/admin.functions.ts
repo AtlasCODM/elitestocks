@@ -16,7 +16,8 @@ async function isAdminUser(userId: string) {
 }
 
 async function requireAdmin(userId: string) {
-  if (!(await isAdminUser(userId))) throw new Error("Forbidden: administrator access required");
+  if (!(await isAdminUser(userId, supabaseAdmin)))
+    throw new Error("Forbidden: administrator access required");
 }
 
 export const getAdminAccess = createServerFn({ method: "GET" })
