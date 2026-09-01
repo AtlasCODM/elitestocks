@@ -1,31 +1,38 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types predate the admin migration. */
+/* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types predate the user_roles table. */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-async function isAdminUser(authClient: any) {
-  // public.is_admin derives auth.uid() from the verified bearer token.
-  // No role or user ID is accepted from the browser.
-  const { data, error } = await authClient.rpc("is_admin");
+async function isAdminUser(authClient: any, userId: string) {
+  // The bearer token is verified by requireSupabaseAuth. The role is read from
+  // the database, never from browser state, JWT metadata, or a user-supplied ID.
+  const { data, error } = await authClient
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .limit(1);
   if (error) throw new Error(`Unable to verify administrator role: ${error.message}`);
-  return data === true;
+  return Array.isArray(data) && data.length > 0;
 }
 
-async function requireAdmin(authClient: any) {
-  if (!(await isAdminUser(authClient))) {
+async function requireAdmin(authClient: any, userId: string) {
+  if (!(await isAdminUser(authClient, userId))) {
     throw new Error("Forbidden: administrator access required");
   }
 }
 
 export const getAdminAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => ({ isAdmin: await isAdminUser(context.supabase) }));
+  .handler(async ({ context }) => ({
+    isAdmin: await isAdminUser(context.supabase, context.userId),
+  }));
 
 export const getAdminState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await requireAdmin(context.supabase);
+    await requireAdmin(context.supabase, context.userId);
     const [{ data: transactions, error: txError }, { data: settings, error: settingsError }] =
       await Promise.all([
         (supabaseAdmin as any)
@@ -56,7 +63,7 @@ export const updateAdminTransaction = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => UpdateTransactionInput.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context.supabase);
+    await requireAdmin(context.supabase, context.userId);
     const { data: transaction, error } = await (supabaseAdmin as any).rpc(
       "admin_update_transaction",
       {
@@ -79,7 +86,7 @@ export const updateAdminSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => UpdateSettingsInput.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context.supabase);
+    await requireAdmin(context.supabase, context.userId);
     if (data.maxWithdrawal <= data.minWithdrawal) {
       throw new Error("Maximum must exceed minimum");
     }
