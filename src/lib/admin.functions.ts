@@ -10,9 +10,9 @@ async function isAdminUser(userId: string) {
     .select("role")
     .eq("user_id", userId)
     .eq("role", "admin")
-    .maybeSingle();
+    .limit(1);
   if (error) throw new Error(`Unable to verify administrator role: ${error.message}`);
-  return Boolean(data);
+  return Array.isArray(data) && data.length > 0;
 }
 
 async function requireAdmin(userId: string) {
