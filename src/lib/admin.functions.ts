@@ -4,19 +4,25 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+async function isAdminUser(userId: string) {
+  const { data, error } = await (supabaseAdmin as any)
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  if (error) throw new Error(`Unable to verify administrator role: ${error.message}`);
+  return Boolean(data);
+}
+
 async function requireAdmin(userId: string) {
-  const { data, error } = await (supabaseAdmin as any).rpc("is_admin", { actor: userId });
-  if (error || !data) throw new Error("Forbidden: administrator access required");
+  if (!(await isAdminUser(userId))) throw new Error("Forbidden: administrator access required");
 }
 
 export const getAdminAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await (supabaseAdmin as any).rpc("is_admin", {
-      actor: context.userId,
-    });
-    if (error) return { isAdmin: false };
-    return { isAdmin: Boolean(data) };
+    return { isAdmin: await isAdminUser(context.userId) };
   });
 
 export const getAdminState = createServerFn({ method: "GET" })

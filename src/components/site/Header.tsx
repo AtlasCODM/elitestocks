@@ -26,7 +26,8 @@ export function Header() {
     queryKey: ["admin-access", user?.id],
     queryFn: () => checkAdmin(),
     enabled: Boolean(user),
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   useEffect(() => {
