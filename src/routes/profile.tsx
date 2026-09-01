@@ -4,6 +4,9 @@ import { Footer } from "@/components/site/Footer";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { LogOut, ShieldCheck, Wallet, TrendingUp } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getAdminAccess } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -18,6 +21,13 @@ export const Route = createFileRoute("/profile")({
 function ProfilePage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const checkAdmin = useServerFn(getAdminAccess);
+  const { data: adminAccess } = useQuery({
+    queryKey: ["admin-access", user?.id],
+    queryFn: () => checkAdmin(),
+    enabled: Boolean(user),
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -25,7 +35,8 @@ function ProfilePage() {
 
   if (loading || !user) return <div className="min-h-screen bg-background" />;
 
-  const name = (user.user_metadata?.display_name as string) || user.email?.split("@")[0] || "Trader";
+  const name =
+    (user.user_metadata?.display_name as string) || user.email?.split("@")[0] || "Trader";
 
   return (
     <div className="min-h-screen bg-background">
@@ -50,31 +61,56 @@ function ProfilePage() {
 
           <dl className="mt-8 grid gap-4 sm:grid-cols-2">
             <div className="rounded-md border border-border bg-surface p-4">
-              <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">User ID</dt>
+              <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                User ID
+              </dt>
               <dd className="mt-1 font-mono text-xs">{user.id}</dd>
             </div>
             <div className="rounded-md border border-border bg-surface p-4">
               <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">Joined</dt>
-              <dd className="mt-1 font-mono text-xs">{new Date(user.created_at).toLocaleDateString()}</dd>
+              <dd className="mt-1 font-mono text-xs">
+                {new Date(user.created_at).toLocaleDateString()}
+              </dd>
             </div>
           </dl>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
+          {adminAccess?.isAdmin && (
+            <Link to="/admin" className="panel flex items-center gap-3 p-5 hover:border-gold">
+              <ShieldCheck className="h-5 w-5 text-gold" />
+              <div>
+                <div className="font-semibold">Admin Dashboard</div>
+                <div className="text-xs text-muted-foreground">Manage platform activity</div>
+              </div>
+            </Link>
+          )}
           <Link to="/wallet" className="panel flex items-center gap-3 p-5 hover:border-gold">
             <Wallet className="h-5 w-5 text-gold" />
-            <div><div className="font-semibold">Wallet</div><div className="text-xs text-muted-foreground">Deposit & withdraw</div></div>
+            <div>
+              <div className="font-semibold">Wallet</div>
+              <div className="text-xs text-muted-foreground">Deposit & withdraw</div>
+            </div>
           </Link>
           <Link to="/strategies" className="panel flex items-center gap-3 p-5 hover:border-gold">
             <TrendingUp className="h-5 w-5 text-gold" />
-            <div><div className="font-semibold">Invest</div><div className="text-xs text-muted-foreground">Strategy plans</div></div>
+            <div>
+              <div className="font-semibold">Invest</div>
+              <div className="text-xs text-muted-foreground">Strategy plans</div>
+            </div>
           </Link>
           <button
-            onClick={async () => { await signOut(); navigate({ to: "/" }); }}
+            onClick={async () => {
+              await signOut();
+              navigate({ to: "/" });
+            }}
             className="panel flex items-center gap-3 p-5 text-left hover:border-bear"
           >
             <LogOut className="h-5 w-5 text-bear" />
-            <div><div className="font-semibold">Sign out</div><div className="text-xs text-muted-foreground">End your session</div></div>
+            <div>
+              <div className="font-semibold">Sign out</div>
+              <div className="text-xs text-muted-foreground">End your session</div>
+            </div>
           </button>
         </div>
       </div>
