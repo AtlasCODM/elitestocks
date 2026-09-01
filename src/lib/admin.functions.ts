@@ -77,10 +77,38 @@ export const updateAdminTransaction = createServerFn({ method: "POST" })
   });
 
 const UpdateSettingsInput = z.object({
-  bitcoinWalletAddress: z.string().trim().min(10).max(200),
-  ethereumWalletAddress: z.string().trim().min(10).max(200),
-  solanaWalletAddress: z.string().trim().min(10).max(200),
-  usdtWalletAddress: z.string().trim().min(10).max(200),
+  bitcoinWalletAddress: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (value) => value === "" || value.length >= 10,
+      "Address must be empty or at least 10 characters",
+    ),
+  ethereumWalletAddress: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (value) => value === "" || value.length >= 10,
+      "Address must be empty or at least 10 characters",
+    ),
+  solanaWalletAddress: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (value) => value === "" || value.length >= 10,
+      "Address must be empty or at least 10 characters",
+    ),
+  usdtWalletAddress: z
+    .string()
+    .trim()
+    .max(200)
+    .refine(
+      (value) => value === "" || value.length >= 10,
+      "Address must be empty or at least 10 characters",
+    ),
   minWithdrawal: z.number().finite().nonnegative(),
   maxWithdrawal: z.number().finite().positive(),
 });
