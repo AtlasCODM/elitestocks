@@ -3,6 +3,9 @@ import { Logo } from "./Logo";
 import { Bell, LogOut, Menu, X } from "lucide-react";
 import { useAuth, signOut } from "@/hooks/useAuth";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { getAdminAccess } from "@/lib/admin.functions";
 
 const NAV = [
   { to: "/terminal", label: "Dashboard" },
@@ -18,6 +21,13 @@ export function Header() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const checkAdmin = useServerFn(getAdminAccess);
+  const { data: adminAccess } = useQuery({
+    queryKey: ["admin-access", user?.id],
+    queryFn: () => checkAdmin(),
+    enabled: Boolean(user),
+    staleTime: 30_000,
+  });
 
   useEffect(() => {
     if (open) document.body.style.overflow = "hidden";
@@ -55,6 +65,15 @@ export function Header() {
                 {n.label}
               </Link>
             ))}
+            {adminAccess?.isAdmin && (
+              <Link
+                to="/admin"
+                className="rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+                activeProps={{ className: "text-gold bg-surface-2" }}
+              >
+                Admin
+              </Link>
+            )}
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
@@ -128,6 +147,16 @@ export function Header() {
                   {n.label}
                 </Link>
               ))}
+              {adminAccess?.isAdmin && (
+                <Link
+                  to="/admin"
+                  onClick={() => setOpen(false)}
+                  className="rounded-md px-3 py-3 text-sm font-medium text-gold hover:bg-surface-2"
+                  activeProps={{ className: "text-gold bg-surface-2" }}
+                >
+                  Admin Dashboard
+                </Link>
+              )}
               <div className="my-2 border-t border-border" />
               {user ? (
                 <button

@@ -17,6 +17,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SecurityRouteImport } from './routes/security'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as MarketsRouteImport } from './routes/markets'
+import { Route as MaintenanceRouteImport } from './routes/maintenance'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InvestmentsRouteImport } from './routes/investments'
 import { Route as HistoryRouteImport } from './routes/history'
@@ -64,6 +65,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const MarketsRoute = MarketsRouteImport.update({
   id: '/markets',
   path: '/markets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MaintenanceRoute = MaintenanceRouteImport.update({
+  id: '/maintenance',
+  path: '/maintenance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -116,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof HistoryRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/markets': typeof MarketsRoute
   '/profile': typeof ProfileRoute
   '/security': typeof SecurityRoute
@@ -134,6 +141,7 @@ export interface FileRoutesByTo {
   '/history': typeof HistoryRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/markets': typeof MarketsRoute
   '/profile': typeof ProfileRoute
   '/security': typeof SecurityRoute
@@ -153,6 +161,7 @@ export interface FileRoutesById {
   '/history': typeof HistoryRoute
   '/investments': typeof InvestmentsRoute
   '/login': typeof LoginRoute
+  '/maintenance': typeof MaintenanceRoute
   '/markets': typeof MarketsRoute
   '/profile': typeof ProfileRoute
   '/security': typeof SecurityRoute
@@ -173,6 +182,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/investments'
     | '/login'
+    | '/maintenance'
     | '/markets'
     | '/profile'
     | '/security'
@@ -191,6 +201,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/investments'
     | '/login'
+    | '/maintenance'
     | '/markets'
     | '/profile'
     | '/security'
@@ -209,6 +220,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/investments'
     | '/login'
+    | '/maintenance'
     | '/markets'
     | '/profile'
     | '/security'
@@ -228,6 +240,7 @@ export interface RootRouteChildren {
   HistoryRoute: typeof HistoryRoute
   InvestmentsRoute: typeof InvestmentsRoute
   LoginRoute: typeof LoginRoute
+  MaintenanceRoute: typeof MaintenanceRoute
   MarketsRoute: typeof MarketsRoute
   ProfileRoute: typeof ProfileRoute
   SecurityRoute: typeof SecurityRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/maintenance': {
+      id: '/maintenance'
+      path: '/maintenance'
+      fullPath: '/maintenance'
+      preLoaderRoute: typeof MaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -364,6 +384,7 @@ const rootRouteChildren: RootRouteChildren = {
   HistoryRoute: HistoryRoute,
   InvestmentsRoute: InvestmentsRoute,
   LoginRoute: LoginRoute,
+  MaintenanceRoute: MaintenanceRoute,
   MarketsRoute: MarketsRoute,
   ProfileRoute: ProfileRoute,
   SecurityRoute: SecurityRoute,

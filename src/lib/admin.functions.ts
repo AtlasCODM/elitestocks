@@ -9,6 +9,16 @@ async function requireAdmin(userId: string) {
   if (error || !data) throw new Error("Forbidden: administrator access required");
 }
 
+export const getAdminAccess = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await (supabaseAdmin as any).rpc("is_admin", {
+      actor: context.userId,
+    });
+    if (error) return { isAdmin: false };
+    return { isAdmin: Boolean(data) };
+  });
+
 export const getAdminState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {

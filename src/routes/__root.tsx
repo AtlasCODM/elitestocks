@@ -6,9 +6,11 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  useLocation,
 } from "@tanstack/react-router";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
+import { MaintenancePage } from "./maintenance";
 
 import appCss from "../styles.css?url";
 
@@ -22,7 +24,10 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist.
         </p>
         <div className="mt-6">
-          <Link to="/" className="rounded-md bg-gold px-4 py-2 text-sm font-semibold text-primary-foreground">
+          <Link
+            to="/"
+            className="rounded-md bg-gold px-4 py-2 text-sm font-semibold text-primary-foreground"
+          >
             Return home
           </Link>
         </div>
@@ -40,7 +45,10 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         <h1 className="text-xl font-semibold">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-6 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-primary-foreground"
         >
           Retry
@@ -56,16 +64,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Elite Stocks — Institutional-Grade Digital Asset Trading" },
-      { name: "description", content: "AI-powered institutional crypto intelligence, brokerage, and trading infrastructure with bank-grade security and elite-tier strategy modules." },
+      {
+        name: "description",
+        content:
+          "AI-powered institutional crypto intelligence, brokerage, and trading infrastructure with bank-grade security and elite-tier strategy modules.",
+      },
       { name: "theme-color", content: "#0a0a0a" },
       { property: "og:title", content: "EliteStock — Institutional-Grade Digital Asset Trading" },
-      { property: "og:description", content: "AI-powered institutional crypto intelligence, brokerage, and trading infrastructure with bank-grade security and elite-tier strategy modules." },
+      {
+        property: "og:description",
+        content:
+          "AI-powered institutional crypto intelligence, brokerage, and trading infrastructure with bank-grade security and elite-tier strategy modules.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Elite Stocks — Institutional-Grade Digital Asset Trading" },
-      { name: "twitter:description", content: "AI-powered institutional crypto intelligence, brokerage, and trading infrastructure with bank-grade security and elite-tier strategy modules." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e0856500-e5b4-4d48-bfed-0d3a9347f4ef/id-preview-a52a005e--23c088e9-ed6e-44af-aa44-7e479a159e1c.lovable.app-1780110497546.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e0856500-e5b4-4d48-bfed-0d3a9347f4ef/id-preview-a52a005e--23c088e9-ed6e-44af-aa44-7e479a159e1c.lovable.app-1780110497546.png" },
+      {
+        name: "twitter:title",
+        content: "Elite Stocks — Institutional-Grade Digital Asset Trading",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "AI-powered institutional crypto intelligence, brokerage, and trading infrastructure with bank-grade security and elite-tier strategy modules.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e0856500-e5b4-4d48-bfed-0d3a9347f4ef/id-preview-a52a005e--23c088e9-ed6e-44af-aa44-7e479a159e1c.lovable.app-1780110497546.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e0856500-e5b4-4d48-bfed-0d3a9347f4ef/id-preview-a52a005e--23c088e9-ed6e-44af-aa44-7e479a159e1c.lovable.app-1780110497546.png",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -102,9 +133,20 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
-        <Toaster />
+        <MaintenanceGate />
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function MaintenanceGate() {
+  const location = useLocation();
+  const enabled = import.meta.env.VITE_MAINTENANCE_MODE === "true";
+  if (enabled && location.pathname !== "/maintenance") return <MaintenancePage />;
+  return (
+    <>
+      <Outlet />
+      <Toaster />
+    </>
   );
 }
