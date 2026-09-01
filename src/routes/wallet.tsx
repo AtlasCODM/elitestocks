@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWalletState } from "@/lib/wallet.functions";
-import { confirmDeposit } from "@/lib/deposit.functions";
+import { confirmDeposit, getDepositAddress } from "@/lib/deposit.functions";
 import { createWithdrawal } from "@/lib/withdraw.functions";
 import { useEffect, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Copy, CheckCircle2, Clock, Loader2 } from "lucide-react";
@@ -26,7 +26,10 @@ export const Route = createFileRoute("/wallet")({
   head: () => ({
     meta: [
       { title: "Wallet — Aureum Exchange" },
-      { name: "description", content: "Manage your multi-asset wallet, deposits, and withdrawals." },
+      {
+        name: "description",
+        content: "Manage your multi-asset wallet, deposits, and withdrawals.",
+      },
     ],
   }),
   component: WalletPage,
@@ -73,7 +76,9 @@ function WalletPage() {
             </p>
           </div>
           <div className="rounded-lg border border-border bg-surface px-6 py-4">
-            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total Portfolio Value</div>
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+              Total Portfolio Value
+            </div>
             <div className="font-mono text-3xl font-bold text-gold gold-text-glow">
               ${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
             </div>
@@ -124,9 +129,17 @@ function Overview({ balances }: { balances: Record<Asset, number> }) {
             <div className="absolute inset-0 grid-bg-sm opacity-20" />
             <div className="relative flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
-                  style={{ background: a.color + "20", color: a.color }}>
-                  {a.symbol === "BTC" ? "₿" : a.symbol === "ETH" ? "Ξ" : a.symbol === "SOL" ? "◎" : "₮"}
+                <div
+                  className="flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold"
+                  style={{ background: a.color + "20", color: a.color }}
+                >
+                  {a.symbol === "BTC"
+                    ? "₿"
+                    : a.symbol === "ETH"
+                      ? "Ξ"
+                      : a.symbol === "SOL"
+                        ? "◎"
+                        : "₮"}
                 </div>
                 <div>
                   <div className="font-semibold">{a.symbol}</div>
@@ -134,11 +147,14 @@ function Overview({ balances }: { balances: Record<Asset, number> }) {
                 </div>
               </div>
               <span className={`font-mono text-xs ${a.change24h >= 0 ? "text-bull" : "text-bear"}`}>
-                {a.change24h >= 0 ? "+" : ""}{a.change24h.toFixed(2)}%
+                {a.change24h >= 0 ? "+" : ""}
+                {a.change24h.toFixed(2)}%
               </span>
             </div>
             <div className="relative mt-5">
-              <div className="font-mono text-2xl font-bold">{bal.toLocaleString(undefined, { maximumFractionDigits: 6 })}</div>
+              <div className="font-mono text-2xl font-bold">
+                {bal.toLocaleString(undefined, { maximumFractionDigits: 6 })}
+              </div>
               <div className="font-mono text-xs text-muted-foreground">
                 ≈ ${usd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </div>
@@ -153,8 +169,15 @@ function Overview({ balances }: { balances: Record<Asset, number> }) {
 function Deposit() {
   const qc = useQueryClient();
   const deposit = useServerFn(confirmDeposit);
+  const fetchAddress = useServerFn(getDepositAddress);
   const [asset, setAsset] = useState<Asset>("USDT");
   const [amount, setAmount] = useState("");
+  const addressQuery = useQuery({
+    queryKey: ["deposit-address", asset],
+    queryFn: () => fetchAddress({ data: { asset } }),
+    staleTime: 0,
+  });
+  const depositAddress = addressQuery.data?.address ?? DEPOSIT_ADDRESSES[asset];
 
   const m = useMutation({
     mutationFn: (v: { asset: Asset; amount: number }) => deposit({ data: v }),
@@ -181,25 +204,41 @@ function Deposit() {
         </p>
 
         <div className="mt-5">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Select Asset</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Select Asset
+          </div>
           <div className="mt-2 grid grid-cols-4 gap-2">
             {ASSETS.map((a) => (
-              <button key={a.symbol} onClick={() => setAsset(a.symbol as Asset)}
+              <button
+                key={a.symbol}
+                onClick={() => setAsset(a.symbol as Asset)}
                 className={`rounded-md border px-3 py-2.5 text-sm font-semibold ${
                   asset === a.symbol
                     ? "border-gold bg-gold/10 text-gold gold-glow"
                     : "border-border bg-surface text-muted-foreground hover:text-foreground"
-                }`}>{a.symbol}</button>
+                }`}
+              >
+                {a.symbol}
+              </button>
             ))}
           </div>
         </div>
 
         <div className="mt-5">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Deposit Address</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Deposit Address
+          </div>
           <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-3 font-mono text-xs">
-            <span className="truncate">{DEPOSIT_ADDRESSES[asset]}</span>
-            <button onClick={() => { navigator.clipboard.writeText(DEPOSIT_ADDRESSES[asset]); toast.success("Address copied"); }}
-              className="text-muted-foreground hover:text-gold"><Copy className="h-3.5 w-3.5" /></button>
+            <span className="truncate">{depositAddress}</span>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(depositAddress);
+                toast.success("Address copied");
+              }}
+              className="text-muted-foreground hover:text-gold"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
           </div>
           <p className="mt-1 text-[10px] text-muted-foreground">
             Send only {asset} to this address. Other assets will be lost.
@@ -207,13 +246,22 @@ function Deposit() {
         </div>
 
         <div className="mt-5">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount Sent</div>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
-            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 font-mono text-lg outline-none focus:border-gold" />
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Amount Sent
+          </div>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 font-mono text-lg outline-none focus:border-gold"
+          />
         </div>
 
-        <button onClick={handle} disabled={m.isPending}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-gold py-3 text-sm font-bold text-primary-foreground hover:brightness-110 disabled:opacity-60">
+        <button
+          onClick={handle}
+          disabled={m.isPending}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-gold py-3 text-sm font-bold text-primary-foreground hover:brightness-110 disabled:opacity-60"
+        >
           <ArrowDownToLine className="h-4 w-4" /> {m.isPending ? "Submitting…" : "Confirm Deposit"}
         </button>
       </div>
@@ -221,9 +269,18 @@ function Deposit() {
       <div className="panel p-6">
         <h2 className="font-semibold">How deposits work</h2>
         <ol className="mt-4 space-y-3 text-sm text-muted-foreground">
-          <li><span className="text-foreground font-semibold">1.</span> Select the asset and enter the amount.</li>
-          <li><span className="text-foreground font-semibold">2.</span> Click <span className="text-gold">Confirm Deposit</span>.</li>
-          <li><span className="text-foreground font-semibold">3.</span> Your balance is credited automatically within ~5 minutes.</li>
+          <li>
+            <span className="text-foreground font-semibold">1.</span> Select the asset and enter the
+            amount.
+          </li>
+          <li>
+            <span className="text-foreground font-semibold">2.</span> Click{" "}
+            <span className="text-gold">Confirm Deposit</span>.
+          </li>
+          <li>
+            <span className="text-foreground font-semibold">3.</span> Your balance is credited
+            automatically within ~5 minutes.
+          </li>
         </ol>
         <div className="mt-6 rounded-md border border-border bg-surface p-4 text-xs text-muted-foreground">
           Track real-time status in the History tab.
@@ -244,7 +301,8 @@ function Withdraw({ balances }: { balances: Record<Asset, number> }) {
     mutationFn: (v: { asset: Asset; amount: number; address: string }) => wd({ data: v }),
     onSuccess: () => {
       toast.success("Withdrawal submitted");
-      setAmount(""); setAddress("");
+      setAmount("");
+      setAddress("");
       qc.invalidateQueries({ queryKey: ["wallet-state"] });
     },
     onError: (e: Error) => toast.error(e.message),
@@ -267,37 +325,59 @@ function Withdraw({ balances }: { balances: Record<Asset, number> }) {
         </p>
 
         <div className="mt-5">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Select Asset</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Select Asset
+          </div>
           <div className="mt-2 grid grid-cols-4 gap-2">
             {ASSETS.map((a) => (
-              <button key={a.symbol} onClick={() => setAsset(a.symbol as Asset)}
+              <button
+                key={a.symbol}
+                onClick={() => setAsset(a.symbol as Asset)}
                 className={`rounded-md border px-3 py-2.5 text-sm font-semibold ${
                   asset === a.symbol
                     ? "border-gold bg-gold/10 text-gold gold-glow"
                     : "border-border bg-surface text-muted-foreground hover:text-foreground"
-                }`}>{a.symbol}</button>
+                }`}
+              >
+                {a.symbol}
+              </button>
             ))}
           </div>
           <div className="mt-2 font-mono text-[11px] text-muted-foreground">
-            Available: {balances[asset].toLocaleString(undefined, { maximumFractionDigits: 6 })} {asset}
+            Available: {balances[asset].toLocaleString(undefined, { maximumFractionDigits: 6 })}{" "}
+            {asset}
           </div>
         </div>
 
         <div className="mt-5">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Destination Address</div>
-          <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={`${asset} address`}
-            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 font-mono text-xs outline-none focus:border-gold" />
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Destination Address
+          </div>
+          <input
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder={`${asset} address`}
+            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 font-mono text-xs outline-none focus:border-gold"
+          />
         </div>
 
         <div className="mt-5">
           <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Amount</div>
-          <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00"
-            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 font-mono text-lg outline-none focus:border-gold" />
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-3 font-mono text-lg outline-none focus:border-gold"
+          />
         </div>
 
-        <button onClick={handle} disabled={m.isPending}
-          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-gold py-3 text-sm font-bold text-primary-foreground hover:brightness-110 disabled:opacity-60">
-          <ArrowUpFromLine className="h-4 w-4" /> {m.isPending ? "Submitting…" : "Submit Withdrawal"}
+        <button
+          onClick={handle}
+          disabled={m.isPending}
+          className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-md bg-gold py-3 text-sm font-bold text-primary-foreground hover:brightness-110 disabled:opacity-60"
+        >
+          <ArrowUpFromLine className="h-4 w-4" />{" "}
+          {m.isPending ? "Submitting…" : "Submit Withdrawal"}
         </button>
       </div>
 
@@ -339,9 +419,11 @@ function History({ transactions }: { transactions: TxRow[] }) {
         </thead>
         <tbody>
           {transactions.length === 0 && (
-            <tr><td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
-              No transactions yet
-            </td></tr>
+            <tr>
+              <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">
+                No transactions yet
+              </td>
+            </tr>
           )}
           {transactions.map((t) => (
             <tr key={t.id} className="border-t border-border bg-background">
@@ -354,9 +436,15 @@ function History({ transactions }: { transactions: TxRow[] }) {
                 </span>
               </td>
               <td className="px-4 py-3 font-semibold">{t.asset}</td>
-              <td className="px-4 py-3 text-right font-mono">{Number(t.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })}</td>
-              <td className="px-4 py-3"><StatusBadge status={t.status} /></td>
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{t.id.slice(0, 12)}…</td>
+              <td className="px-4 py-3 text-right font-mono">
+                {Number(t.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+              </td>
+              <td className="px-4 py-3">
+                <StatusBadge status={t.status} />
+              </td>
+              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                {t.id.slice(0, 12)}…
+              </td>
             </tr>
           ))}
         </tbody>
@@ -368,17 +456,23 @@ function History({ transactions }: { transactions: TxRow[] }) {
 function StatusBadge({ status }: { status: string }) {
   const success = ["successful", "confirmed", "completed", "matured"].includes(status);
   const pending = ["pending", "pending_confirmation", "verifying", "processing"].includes(status);
-  if (success) return (
-    <span className="inline-flex items-center gap-1.5 rounded bg-bull/15 px-2 py-1 text-xs text-bull">
-      <CheckCircle2 className="h-3 w-3" /> {status.replace("_", " ")}
-    </span>
-  );
-  if (pending) return (
-    <span className="inline-flex items-center gap-1.5 rounded bg-amber-500/15 px-2 py-1 text-xs text-amber-400">
-      {status === "processing" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Clock className="h-3 w-3" />}
-      {status.replace("_", " ")}
-    </span>
-  );
+  if (success)
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded bg-bull/15 px-2 py-1 text-xs text-bull">
+        <CheckCircle2 className="h-3 w-3" /> {status.replace("_", " ")}
+      </span>
+    );
+  if (pending)
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded bg-amber-500/15 px-2 py-1 text-xs text-amber-400">
+        {status === "processing" ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Clock className="h-3 w-3" />
+        )}
+        {status.replace("_", " ")}
+      </span>
+    );
   return (
     <span className="inline-flex items-center gap-1.5 rounded bg-bear/15 px-2 py-1 text-xs text-bear">
       {status}

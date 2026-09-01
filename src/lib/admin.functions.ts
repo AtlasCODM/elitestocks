@@ -77,7 +77,10 @@ export const updateAdminTransaction = createServerFn({ method: "POST" })
   });
 
 const UpdateSettingsInput = z.object({
-  walletAddress: z.string().trim().min(10).max(200),
+  bitcoinWalletAddress: z.string().trim().min(10).max(200),
+  ethereumWalletAddress: z.string().trim().min(10).max(200),
+  solanaWalletAddress: z.string().trim().min(10).max(200),
+  usdtWalletAddress: z.string().trim().min(10).max(200),
   minWithdrawal: z.number().finite().nonnegative(),
   maxWithdrawal: z.number().finite().positive(),
 });
@@ -91,11 +94,40 @@ export const updateAdminSettings = createServerFn({ method: "POST" })
       throw new Error("Maximum must exceed minimum");
     }
     const { data: settings, error } = await (supabaseAdmin as any).rpc("admin_update_settings", {
-      p_wallet_address: data.walletAddress,
+      p_bitcoin_wallet_address: data.bitcoinWalletAddress,
+      p_ethereum_wallet_address: data.ethereumWalletAddress,
+      p_solana_wallet_address: data.solanaWalletAddress,
+      p_usdt_wallet_address: data.usdtWalletAddress,
       p_min_withdrawal: data.minWithdrawal,
       p_max_withdrawal: data.maxWithdrawal,
       p_admin_id: context.userId,
     });
     if (error) throw new Error(error.message);
     return settings;
+  });
+
+export const listAdminUsers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context.supabase, context.userId);
+    const users: any[] = [];
+    for (let page = 1; page <= 100; page += 1) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw new Error(error.message);
+      users.push(...data.users);
+      if (data.users.length < 1000) break;
+    }
+    return { users };
+  });
+
+const DeleteUserInput = z.object({ userId: z.string().uuid() });
+export const deleteAdminUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => DeleteUserInput.parse(data))
+  .handler(async ({ context, data }) => {
+    await requireAdmin(context.supabase, context.userId);
+    if (data.userId === context.userId) throw new Error("You cannot delete your own account");
+    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    if (error) throw new Error(error.message);
+    return { deletedUserId: data.userId };
   });

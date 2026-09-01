@@ -10,39 +10,43 @@ const Input = z.object({
   amount: z.number().positive().max(1_000_000),
 });
 
+const walletColumn = {
+  BTC: "bitcoin_wallet_address",
+  ETH: "ethereum_wallet_address",
+  SOL: "solana_wallet_address",
+  USDT: "usdt_wallet_address",
+} as const;
+
+async function configuredDepositAddress(asset: Asset) {
+  const { data: settings } = await (supabaseAdmin as any)
+    .from("platform_settings")
+    .select(`${walletColumn[asset]}, wallet_address`)
+    .eq("id", true)
+    .single();
+  return settings?.[walletColumn[asset]] || settings?.wallet_address || DEPOSIT_ADDRESSES[asset];
+}
+
 export const getDepositAddress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { asset: Asset }) =>
     z.object({ asset: z.enum(["BTC", "ETH", "SOL", "USDT"]) }).parse(d),
   )
-  .handler(async ({ data }) => {
-    const { data: settings } = await (supabaseAdmin as any)
-      .from("platform_settings")
-      .select("wallet_address")
-      .eq("id", true)
-      .single();
-    return { address: settings?.wallet_address || DEPOSIT_ADDRESSES[data.asset] };
-  });
+  .handler(async ({ data }) => ({ address: await configuredDepositAddress(data.asset) }));
 
 export const confirmDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data, context }) => {
-    const { userId } = context;
-    const { data: settings } = await (supabaseAdmin as any)
-      .from("platform_settings")
-      .select("wallet_address")
-      .eq("id", true)
-      .single();
+    const address = await configuredDepositAddress(data.asset);
     const { data: tx, error } = await supabaseAdmin
       .from("transactions")
       .insert({
-        user_id: userId,
+        user_id: context.userId,
         type: "deposit",
         amount: data.amount,
         asset: data.asset,
         status: "pending_confirmation",
-        address: settings?.wallet_address || DEPOSIT_ADDRESSES[data.asset],
+        address,
         metadata: { source: "user_confirm" },
       })
       .select()

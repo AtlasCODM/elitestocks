@@ -6,7 +6,13 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { useAuth } from "@/hooks/useAuth";
-import { getAdminState, updateAdminSettings, updateAdminTransaction } from "@/lib/admin.functions";
+import {
+  deleteAdminUser,
+  getAdminState,
+  listAdminUsers,
+  updateAdminSettings,
+  updateAdminTransaction,
+} from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
 type Tab = "overview" | "transactions" | "users" | "settings";
@@ -15,7 +21,6 @@ const pendingStatuses = ["pending", "pending_confirmation", "verifying"];
 function AdminPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const fetchAdmin = useServerFn(getAdminState);
   const [tab, setTab] = useState<Tab>("overview");
   const query = useQuery({
@@ -25,6 +30,14 @@ function AdminPage() {
     staleTime: 0,
     refetchOnMount: "always",
     retry: false,
+  });
+  const fetchUsers = useServerFn(listAdminUsers);
+  const usersQuery = useQuery({
+    queryKey: ["admin-users", user?.id],
+    queryFn: () => fetchUsers(),
+    enabled: !!user && tab === "users",
+    staleTime: 0,
+    refetchOnMount: "always",
   });
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -111,7 +124,7 @@ function AdminPage() {
         {tab === "transactions" && (
           <Transactions transactions={state?.transactions ?? []} profiles={state?.profiles ?? []} />
         )}
-        {tab === "users" && <Users profiles={state?.profiles ?? []} />}
+        {tab === "users" && <Users users={usersQuery.data?.users ?? []} query={usersQuery} />}
         {tab === "settings" && <Settings settings={state?.settings} />}
       </main>
     </div>
@@ -240,6 +253,9 @@ function Transactions({ transactions, profiles }: any) {
         </table>
         {transactions.length === 0 && <Empty text="No transaction history." />}
       </div>
+      {mutation.error && (
+        <p className="border-t border-border p-4 text-sm text-bear">{mutation.error.message}</p>
+      )}
     </section>
   );
 }
@@ -254,31 +270,66 @@ function ActionButton({ label, onClick, danger, disabled }: any) {
     </button>
   );
 }
-function Users({ profiles }: any) {
+function Users({ users, query }: any) {
+  const client = useQueryClient();
+  const remove = useServerFn(deleteAdminUser);
+  const mutation = useMutation({
+    mutationFn: remove,
+    onSuccess: () => client.invalidateQueries({ queryKey: ["admin-users"] }),
+  });
   return (
     <section className="panel mt-8 p-6">
       <h2 className="font-semibold">Users</h2>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Users represented in transaction activity.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">All registered platform accounts.</p>
       <div className="mt-5 divide-y divide-border">
-        {profiles.map((p: any) => (
-          <div key={p.id} className="flex flex-col gap-1 py-4 sm:flex-row sm:justify-between">
-            <span>{p.display_name || "Unnamed user"}</span>
-            <span className="text-sm text-muted-foreground">
-              {p.email} · {p.status}
-            </span>
-          </div>
-        ))}
+        {query.isLoading ? (
+          <p className="py-10 text-center text-sm">Loading users…</p>
+        ) : (
+          users.map((p: any) => (
+            <div
+              key={p.id}
+              className="flex flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span>
+                <span className="font-medium">
+                  {p.user_metadata?.display_name || p.email || "Unnamed user"}
+                </span>
+                <span className="ml-2 text-xs text-muted-foreground">{p.email}</span>
+              </span>
+              <button
+                type="button"
+                disabled={mutation.isPending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `Delete ${p.email || "this user"}? This permanently removes the account.`,
+                    )
+                  )
+                    mutation.mutate({ userId: p.id });
+                }}
+                className="self-start rounded border border-bear/40 px-2.5 py-1.5 text-xs font-semibold text-bear hover:bg-bear/10 disabled:opacity-50 sm:self-auto"
+              >
+                Delete
+              </button>
+            </div>
+          ))
+        )}
       </div>
-      {profiles.length === 0 && <Empty text="No users found." />}
+      {query.error && <p className="py-4 text-sm text-bear">{query.error.message}</p>}
+      {mutation.error && <p className="py-4 text-sm text-bear">{mutation.error.message}</p>}
+      {!query.isLoading && users.length === 0 && <Empty text="No users found." />}
     </section>
   );
 }
 function Settings({ settings }: any) {
   const client = useQueryClient();
   const update = useServerFn(updateAdminSettings);
-  const [address, setAddress] = useState(settings?.wallet_address ?? "");
+  const [addresses, setAddresses] = useState({
+    BTC: settings?.bitcoin_wallet_address ?? "",
+    ETH: settings?.ethereum_wallet_address ?? "",
+    SOL: settings?.solana_wallet_address ?? "",
+    USDT: settings?.usdt_wallet_address ?? settings?.wallet_address ?? "",
+  });
   const [min, setMin] = useState(String(settings?.min_withdrawal ?? 0));
   const [max, setMax] = useState(String(settings?.max_withdrawal ?? 1000000));
   const mutation = useMutation({
@@ -292,14 +343,16 @@ function Settings({ settings }: any) {
         Changes are persistent and enforced by the withdrawal service.
       </p>
       <div className="mt-6 space-y-5">
-        <label className="block text-sm">
-          Platform wallet address
-          <input
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 font-mono text-xs outline-none focus:border-gold"
-          />
-        </label>
+        {(["BTC", "ETH", "SOL", "USDT"] as const).map((asset) => (
+          <label key={asset} className="block text-sm">
+            {asset} wallet address
+            <input
+              value={addresses[asset]}
+              onChange={(e) => setAddresses((current) => ({ ...current, [asset]: e.target.value }))}
+              className="mt-2 w-full rounded-md border border-border bg-background px-3 py-2.5 font-mono text-xs outline-none focus:border-gold"
+            />
+          </label>
+        ))}
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-sm">
             Minimum withdrawal
@@ -326,7 +379,10 @@ function Settings({ settings }: any) {
           disabled={mutation.isPending}
           onClick={() =>
             mutation.mutate({
-              walletAddress: address,
+              bitcoinWalletAddress: addresses.BTC,
+              ethereumWalletAddress: addresses.ETH,
+              solanaWalletAddress: addresses.SOL,
+              usdtWalletAddress: addresses.USDT,
               minWithdrawal: Number(min),
               maxWithdrawal: Number(max),
             })
