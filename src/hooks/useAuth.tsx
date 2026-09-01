@@ -15,15 +15,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
-      setSession(s);
+    let mounted = true;
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      if (!mounted) return;
+      setSession(nextSession);
       setLoading(false);
     });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+
+    // getSession may attempt a refresh using a stale local refresh token. On
+    // failure, clear only the local session; do not retry or redirect in a loop.
+    supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (!mounted) return;
+        if (error) {
+          setSession(null);
+          void supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+          setLoading(false);
+          return;
+        }
+        setSession(data.session);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setSession(null);
+        void supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -38,5 +62,5 @@ export function useAuth() {
 }
 
 export async function signOut() {
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
 }

@@ -24,7 +24,7 @@ function AdminPage() {
     enabled: !!user,
     staleTime: 0,
     refetchOnMount: "always",
-    refetchInterval: 15000,
+    retry: false,
   });
   useEffect(() => {
     if (!loading && !user) navigate({ to: "/login" });
@@ -46,10 +46,19 @@ function AdminPage() {
         <main className="mx-auto max-w-7xl p-6">
           <div className="panel p-8 text-center">
             <ShieldCheck className="mx-auto h-10 w-10 text-bear" />
-            <h1 className="mt-4 text-xl font-semibold">Administrator access required</h1>
+            <h1 className="mt-4 text-xl font-semibold">Admin dashboard could not load</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Your account is not authorized to view this area.
+              {query.error instanceof Error
+                ? query.error.message
+                : "The protected dashboard request failed."}
             </p>
+            <button
+              type="button"
+              onClick={() => query.refetch()}
+              className="mt-5 rounded-md bg-gold px-4 py-2 text-sm font-semibold text-primary-foreground"
+            >
+              Retry request
+            </button>
           </div>
         </main>
       </>
