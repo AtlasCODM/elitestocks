@@ -181,7 +181,8 @@ function Transactions({ transactions, profiles }: any) {
   const client = useQueryClient();
   const update = useServerFn(updateAdminTransaction);
   const mutation = useMutation({
-    mutationFn: update,
+    mutationFn: (payload: { transactionId: string; action: "approve" | "decline" }) =>
+      update({ data: payload }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["admin-state"] }),
   });
   const profile = (id: string) => profiles.find((p: any) => p.id === id);
@@ -274,7 +275,7 @@ function Users({ users, query }: any) {
   const client = useQueryClient();
   const remove = useServerFn(deleteAdminUser);
   const mutation = useMutation({
-    mutationFn: remove,
+    mutationFn: (payload: { userId: string }) => remove({ data: payload }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["admin-users"] }),
   });
   return (
@@ -333,7 +334,14 @@ function Settings({ settings }: any) {
   const [min, setMin] = useState(String(settings?.min_withdrawal ?? 0));
   const [max, setMax] = useState(String(settings?.max_withdrawal ?? 1000000));
   const mutation = useMutation({
-    mutationFn: update,
+    mutationFn: (payload: {
+      bitcoinWalletAddress: string;
+      ethereumWalletAddress: string;
+      solanaWalletAddress: string;
+      usdtWalletAddress: string;
+      minWithdrawal: number;
+      maxWithdrawal: number;
+    }) => update({ data: payload }),
     onSuccess: () => client.invalidateQueries({ queryKey: ["admin-state"] }),
   });
   return (

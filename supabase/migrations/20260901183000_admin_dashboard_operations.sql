@@ -6,14 +6,6 @@ ALTER TABLE public.platform_settings
   ADD COLUMN IF NOT EXISTS solana_wallet_address text NOT NULL DEFAULT '',
   ADD COLUMN IF NOT EXISTS usdt_wallet_address text NOT NULL DEFAULT '';
 
--- Preserve an existing configured wallet as the initial value for each asset.
-UPDATE public.platform_settings
-SET bitcoin_wallet_address = COALESCE(NULLIF(bitcoin_wallet_address, ''), wallet_address, ''),
-    ethereum_wallet_address = COALESCE(NULLIF(ethereum_wallet_address, ''), wallet_address, ''),
-    solana_wallet_address = COALESCE(NULLIF(solana_wallet_address, ''), wallet_address, ''),
-    usdt_wallet_address = COALESCE(NULLIF(usdt_wallet_address, ''), wallet_address, '')
-WHERE id = true;
-
 CREATE OR REPLACE FUNCTION public.is_admin(actor uuid DEFAULT auth.uid())
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
 AS $$
@@ -93,11 +85,11 @@ AS $$
 DECLARE result public.platform_settings;
 BEGIN
   IF NOT public.is_admin(p_admin_id) THEN RAISE EXCEPTION 'Forbidden'; END IF;
-  IF length(trim(p_bitcoin_wallet_address)) < 10
-     OR length(trim(p_ethereum_wallet_address)) < 10
-     OR length(trim(p_solana_wallet_address)) < 10
-     OR length(trim(p_usdt_wallet_address)) < 10 THEN
-    RAISE EXCEPTION 'All wallet addresses are required';
+  IF length(trim(p_bitcoin_wallet_address)) > 200
+     OR length(trim(p_ethereum_wallet_address)) > 200
+     OR length(trim(p_solana_wallet_address)) > 200
+     OR length(trim(p_usdt_wallet_address)) > 200 THEN
+    RAISE EXCEPTION 'Wallet address is too long';
   END IF;
   IF p_min_withdrawal < 0 OR p_max_withdrawal <= p_min_withdrawal THEN
     RAISE EXCEPTION 'Invalid withdrawal limits';
