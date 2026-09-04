@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-router";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
+import { PlatformActivityNotifications } from "@/components/site/PlatformActivityNotifications";
 import { MaintenancePage } from "./maintenance";
 
 import appCss from "../styles.css?url";
@@ -146,6 +147,7 @@ function MaintenanceGate() {
   return (
     <>
       <Outlet />
+      <PlatformActivityNotifications />
       <Toaster />
     </>
   );
