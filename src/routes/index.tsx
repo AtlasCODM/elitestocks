@@ -1,6 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
+import {
+  CompactTestimonial,
+  FeaturedTestimonial,
+  SplitTestimonial,
+  TestimonialGrid,
+  TESTIMONIALS,
+} from "@/components/site/Testimonials";
 import { Ticker } from "@/components/site/Ticker";
 import { CandleChart, SparkLine } from "@/components/charts/CandleChart";
 import { generateLine, STRATEGIES, TRADERS } from "@/lib/market-data";
@@ -24,7 +31,11 @@ export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Elite Stocks — Institutional Digital Asset Trading" },
-      { name: "description", content: "AI-powered institutional crypto intelligence and trading infrastructure. execution, bank-grade security, elite-tier strategy modules." },
+      {
+        name: "description",
+        content:
+          "AI-powered institutional crypto intelligence and trading infrastructure. execution, bank-grade security, elite-tier strategy modules.",
+      },
     ],
   }),
   component: HomePage,
@@ -37,14 +48,19 @@ function HomePage() {
       <Ticker />
       <Hero />
       <GlobalMetrics />
+      <FeaturedTestimonial testimonial={TESTIMONIALS[0]} />
       <EliteServices />
       <TerminalShowcase />
+      <SplitTestimonial testimonial={TESTIMONIALS[2]} />
       <AIIntelligence />
       <Strategies />
+      <SplitTestimonial testimonial={TESTIMONIALS[6]} />
       <Security />
+      <TestimonialGrid testimonials={[TESTIMONIALS[3], TESTIMONIALS[4], TESTIMONIALS[7]]} />
       <CopyTradingPreview />
       <MobileShowcase />
       <FinalCTA />
+      <CompactTestimonial testimonial={TESTIMONIALS[8]} />
       <Footer />
     </div>
   );
@@ -64,12 +80,13 @@ function Hero() {
             LIVE · Elite Stocks ENGINE
           </div>
           <h1 className="mt-6 font-display text-5xl font-bold leading-[1.05] tracking-tight md:text-6xl lg:text-7xl">
-            AI-Powered <span className="text-gold gold-text-glow">Institutional</span><br />
+            AI-Powered <span className="text-gold gold-text-glow">Institutional</span>
+            <br />
             Crypto Intelligence System
           </h1>
           <p className="mt-6 max-w-xl text-base text-muted-foreground md:text-lg">
-            execution, bank-grade custody, and real-time AI signal
-            infrastructure — engineered for funds, treasuries, and elite traders.
+            execution, bank-grade custody, and real-time AI signal infrastructure — engineered for
+            funds, treasuries, and elite traders.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
@@ -95,7 +112,9 @@ function Hero() {
             ].map((s) => (
               <div key={s.l}>
                 <div className="font-display text-2xl font-bold text-gold md:text-3xl">{s.v}</div>
-                <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">{s.l}</div>
+                <div className="mt-1 text-xs uppercase tracking-wider text-muted-foreground">
+                  {s.l}
+                </div>
               </div>
             ))}
           </div>
@@ -149,11 +168,17 @@ function Hero() {
           {/* floating signal card */}
           <div className="panel-glass absolute -right-4 -bottom-6 hidden w-64 p-3 md:block gold-glow">
             <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">AI Signal</div>
-              <span className="rounded bg-bull/15 px-1.5 py-0.5 text-[10px] font-semibold text-bull">+14.2%</span>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                AI Signal
+              </div>
+              <span className="rounded bg-bull/15 px-1.5 py-0.5 text-[10px] font-semibold text-bull">
+                +14.2%
+              </span>
             </div>
             <div className="mt-1 font-display text-lg font-bold">Strong Buy · ETH</div>
-            <div className="mt-1 font-mono text-[11px] text-muted-foreground">Confidence 92% · 4H</div>
+            <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+              Confidence 92% · 4H
+            </div>
             <div className="mt-2 h-10">
               <SparkLine data={generateLine(99)} color="var(--bull)" height={40} />
             </div>
@@ -169,7 +194,9 @@ function GlobalMetrics() {
     <section className="relative border-y border-border bg-surface/30 py-20">
       <div className="absolute inset-0 grid-bg opacity-40" />
       <div className="relative mx-auto max-w-[1600px] px-6 text-center">
-        <h2 className="font-display text-5xl font-bold tracking-tight md:text-7xl">GLOBAL METRICS</h2>
+        <h2 className="font-display text-5xl font-bold tracking-tight md:text-7xl">
+          GLOBAL METRICS
+        </h2>
         <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
           numbers. Continuous infrastructure. Zero compromise.
         </p>
@@ -194,16 +221,30 @@ function GlobalMetrics() {
 
 function EliteServices() {
   const services = [
-    { icon: Box, title: "Spot Market", desc: "Instant execution and direct asset ownership across BTC, ETH, SOL, USDT." },
-    { icon: Zap, title: "Perpetual Futures", desc: "Leveraged trading with no expiration, deep liquidity pools, and AI-managed risk." },
-    { icon: Network, title: "OTC Block Trading", desc: "Large-volume off-exchange settlements with white-glove desk service." },
+    {
+      icon: Box,
+      title: "Spot Market",
+      desc: "Instant execution and direct asset ownership across BTC, ETH, SOL, USDT.",
+    },
+    {
+      icon: Zap,
+      title: "Perpetual Futures",
+      desc: "Leveraged trading with no expiration, deep liquidity pools, and AI-managed risk.",
+    },
+    {
+      icon: Network,
+      title: "OTC Block Trading",
+      desc: "Large-volume off-exchange settlements with white-glove desk service.",
+    },
   ];
   return (
     <section className="relative py-24">
       <div className="mx-auto max-w-[1600px] px-6">
         <div className="mb-12">
           <h2 className="font-display text-4xl font-bold tracking-tight md:text-6xl">
-            <span className="text-gold">ELITE TRADING</span><br />SERVICES
+            <span className="text-gold">ELITE TRADING</span>
+            <br />
+            SERVICES
           </h2>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
@@ -243,8 +284,8 @@ function TerminalShowcase() {
             ADVANCED TERMINAL
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-            Bloomberg-grade institutional dashboard with order routing, AI-augmented
-            depth analysis, and millisecond-class execution telemetry.
+            Bloomberg-grade institutional dashboard with order routing, AI-augmented depth analysis,
+            and millisecond-class execution telemetry.
           </p>
         </div>
 
@@ -253,18 +294,29 @@ function TerminalShowcase() {
             {/* left: order book */}
             <div className="bg-surface p-3">
               <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-wider text-muted-foreground">
-                <span>Order Book</span><span>BTC/USDT</span>
+                <span>Order Book</span>
+                <span>BTC/USDT</span>
               </div>
               <div className="grid grid-cols-3 pb-1 text-[10px] text-muted-foreground">
-                <span>Price</span><span className="text-right">Size</span><span className="text-right">Total</span>
+                <span>Price</span>
+                <span className="text-right">Size</span>
+                <span className="text-right">Total</span>
               </div>
               {/* asks */}
               {Array.from({ length: 10 }).map((_, i) => (
-                <div key={`a${i}`} className="relative grid grid-cols-3 py-[2px] font-mono text-[11px]">
-                  <div className="absolute inset-y-0 right-0 bg-bear/10" style={{ width: `${(10 - i) * 8}%` }} />
+                <div
+                  key={`a${i}`}
+                  className="relative grid grid-cols-3 py-[2px] font-mono text-[11px]"
+                >
+                  <div
+                    className="absolute inset-y-0 right-0 bg-bear/10"
+                    style={{ width: `${(10 - i) * 8}%` }}
+                  />
                   <span className="relative text-bear">{(67560 - i * 4).toFixed(2)}</span>
                   <span className="relative text-right">{(0.12 + i * 0.08).toFixed(3)}</span>
-                  <span className="relative text-right text-muted-foreground">{((0.12 + i * 0.08) * 67500).toFixed(0)}</span>
+                  <span className="relative text-right text-muted-foreground">
+                    {((0.12 + i * 0.08) * 67500).toFixed(0)}
+                  </span>
                 </div>
               ))}
               <div className="my-2 flex items-center justify-between border-y border-border py-1.5 font-mono text-xs">
@@ -272,11 +324,19 @@ function TerminalShowcase() {
                 <span className="text-bull text-[10px]">↑ 2.34%</span>
               </div>
               {Array.from({ length: 10 }).map((_, i) => (
-                <div key={`b${i}`} className="relative grid grid-cols-3 py-[2px] font-mono text-[11px]">
-                  <div className="absolute inset-y-0 right-0 bg-bull/10" style={{ width: `${(10 - i) * 8}%` }} />
+                <div
+                  key={`b${i}`}
+                  className="relative grid grid-cols-3 py-[2px] font-mono text-[11px]"
+                >
+                  <div
+                    className="absolute inset-y-0 right-0 bg-bull/10"
+                    style={{ width: `${(10 - i) * 8}%` }}
+                  />
                   <span className="relative text-bull">{(67410 - i * 4).toFixed(2)}</span>
                   <span className="relative text-right">{(0.18 + i * 0.06).toFixed(3)}</span>
-                  <span className="relative text-right text-muted-foreground">{((0.18 + i * 0.06) * 67400).toFixed(0)}</span>
+                  <span className="relative text-right text-muted-foreground">
+                    {((0.18 + i * 0.06) * 67400).toFixed(0)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -288,10 +348,17 @@ function TerminalShowcase() {
                   <div className="flex items-center gap-3">
                     <span className="text-foreground font-semibold">BTC/USDT</span>
                     <span className="font-mono text-bull">+2.34%</span>
-                    <span className="text-muted-foreground">O 65,890 H 68,124 L 65,890 C 67,432</span>
+                    <span className="text-muted-foreground">
+                      O 65,890 H 68,124 L 65,890 C 67,432
+                    </span>
                   </div>
                   <div className="flex gap-2 text-muted-foreground">
-                    <span>1m</span><span>5m</span><span className="text-gold">15m</span><span>1H</span><span>4H</span><span>1D</span>
+                    <span>1m</span>
+                    <span>5m</span>
+                    <span className="text-gold">15m</span>
+                    <span>1H</span>
+                    <span>4H</span>
+                    <span>1D</span>
                   </div>
                 </div>
                 <div className="mt-2 h-[280px]">
@@ -300,21 +367,29 @@ function TerminalShowcase() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-surface p-3">
-                  <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Trade Items</div>
+                  <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Trade Items
+                  </div>
                   <div className="space-y-2 text-xs">
                     <Field label="Price" v="67,432.18" suffix="USDT" />
                     <Field label="Amount" v="0.0050" suffix="BTC" />
                     <Field label="Total" v="337.16" suffix="USDT" />
-                    <button className="w-full rounded bg-bull py-2 text-xs font-semibold text-background">Buy / Long</button>
+                    <button className="w-full rounded bg-bull py-2 text-xs font-semibold text-background">
+                      Buy / Long
+                    </button>
                   </div>
                 </div>
                 <div className="bg-surface p-3">
-                  <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Sell Order</div>
+                  <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Sell Order
+                  </div>
                   <div className="space-y-2 text-xs">
                     <Field label="Price" v="67,440.00" suffix="USDT" />
                     <Field label="Amount" v="0.0050" suffix="BTC" />
                     <Field label="Total" v="337.20" suffix="USDT" />
-                    <button className="w-full rounded bg-gold py-2 text-xs font-semibold text-primary-foreground">Sell / Short</button>
+                    <button className="w-full rounded bg-gold py-2 text-xs font-semibold text-primary-foreground">
+                      Sell / Short
+                    </button>
                   </div>
                 </div>
               </div>
@@ -323,24 +398,36 @@ function TerminalShowcase() {
             {/* right: portfolio + trades */}
             <div className="flex flex-col gap-3">
               <div className="bg-surface p-3">
-                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Portfolio Value</div>
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Portfolio Value
+                </div>
                 <div className="mt-1 font-mono text-2xl font-bold text-gold">$148,733.03</div>
                 <div className="mt-1 text-[11px] text-bull">+$2,910.42 (1.97%)</div>
               </div>
               <div className="bg-surface p-3">
-                <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Market Depth</div>
+                <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Market Depth
+                </div>
                 <div className="h-20">
                   <SparkLine data={generateLine(33)} color="var(--gold)" height={80} />
                 </div>
               </div>
               <div className="bg-surface p-3">
-                <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">Trade History</div>
+                <div className="mb-2 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Trade History
+                </div>
                 <div className="space-y-1 font-mono text-[11px]">
                   {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="grid grid-cols-3">
-                      <span className="text-muted-foreground">20:{(36 - i).toString().padStart(2, "0")}:0{(i + 2) % 9}</span>
-                      <span className={i % 2 ? "text-bear text-right" : "text-bull text-right"}>{(67432 + i * 1.2).toFixed(2)}</span>
-                      <span className="text-right text-foreground">{(0.012 * (i + 1)).toFixed(3)}</span>
+                      <span className="text-muted-foreground">
+                        20:{(36 - i).toString().padStart(2, "0")}:0{(i + 2) % 9}
+                      </span>
+                      <span className={i % 2 ? "text-bear text-right" : "text-bull text-right"}>
+                        {(67432 + i * 1.2).toFixed(2)}
+                      </span>
+                      <span className="text-right text-foreground">
+                        {(0.012 * (i + 1)).toFixed(3)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -381,15 +468,16 @@ function AIIntelligence() {
       <div className="relative mx-auto max-w-[1600px] px-6">
         <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>
-            <div className="text-xs uppercase tracking-widest text-gold">AI MARKET INTELLIGENCE</div>
+            <div className="text-xs uppercase tracking-widest text-gold">
+              AI MARKET INTELLIGENCE
+            </div>
             <h2 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl">
               Sentiment, volatility, and prediction —<br />
               <span className="text-gold">unified into one signal stream.</span>
             </h2>
             <p className="mt-4 max-w-lg text-sm text-muted-foreground">
-              Elite Stock's intelligence engine continuously fuses on-chain telemetry,
-              orderflow microstructure, and large-language sentiment models into
-              trading signals.
+              Elite Stock's intelligence engine continuously fuses on-chain telemetry, orderflow
+              microstructure, and large-language sentiment models into trading signals.
             </p>
 
             <div className="mt-8 grid grid-cols-2 gap-4">
@@ -405,7 +493,9 @@ function AIIntelligence() {
                   </div>
                   <div>
                     <div className="font-display text-xl font-bold">{m.v}</div>
-                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{m.l}</div>
+                    <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                      {m.l}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -421,12 +511,25 @@ function AIIntelligence() {
             </div>
             <div className="mt-4 space-y-2.5">
               {[
-                { a: "BTC", s: "Strong Buy", c: 92, d: "Orderflow accumulation + LLM sentiment shift +14.2%" },
-                { a: "ETH", s: "Buy", c: 87, d: "Bullish divergence on 4H · liquidity sweep above 3580" },
+                {
+                  a: "BTC",
+                  s: "Strong Buy",
+                  c: 92,
+                  d: "Orderflow accumulation + LLM sentiment shift +14.2%",
+                },
+                {
+                  a: "ETH",
+                  s: "Buy",
+                  c: 87,
+                  d: "Bullish divergence on 4H · liquidity sweep above 3580",
+                },
                 { a: "SOL", s: "Neutral", c: 64, d: "Range-bound · awaiting macro print" },
                 { a: "USDT", s: "Stable", c: 99, d: "Peg integrity nominal · vol drift < 0.02%" },
               ].map((s) => (
-                <div key={s.a} className="flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2.5">
+                <div
+                  key={s.a}
+                  className="flex items-center gap-3 rounded-md border border-border bg-surface px-3 py-2.5"
+                >
                   <div className="flex h-9 w-9 items-center justify-center rounded bg-surface-2 font-mono text-xs font-bold text-gold">
                     {s.a}
                   </div>
@@ -456,7 +559,8 @@ function AIIntelligence() {
               })}
             </div>
             <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-wider text-muted-foreground">
-              <span>Volatility Heatmap</span><span>7 × 5 · 24h</span>
+              <span>Volatility Heatmap</span>
+              <span>7 × 5 · 24h</span>
             </div>
           </div>
         </div>
@@ -471,7 +575,9 @@ function Strategies() {
       <div className="mx-auto max-w-[1600px] px-6">
         <div className="flex flex-col items-end justify-between gap-4 md:flex-row">
           <div>
-            <div className="text-xs uppercase tracking-widest text-gold">INVESTMENT STRATEGY MODULES</div>
+            <div className="text-xs uppercase tracking-widest text-gold">
+              INVESTMENT STRATEGY MODULES
+            </div>
             <h2 className="mt-3 font-display text-4xl font-bold tracking-tight md:text-5xl">
               yield tiers
             </h2>
@@ -554,7 +660,12 @@ function Security() {
                     />
                     <g transform="translate(80,90)" fill="var(--background)">
                       <rect x="6" y="18" width="28" height="22" rx="3" />
-                      <path d="M11 18 V12 a9 9 0 0 1 18 0 V18" fill="none" stroke="var(--background)" strokeWidth="3" />
+                      <path
+                        d="M11 18 V12 a9 9 0 0 1 18 0 V18"
+                        fill="none"
+                        stroke="var(--background)"
+                        strokeWidth="3"
+                      />
                     </g>
                     {/* circuit lines */}
                     <g stroke="var(--gold)" strokeWidth="0.6" opacity="0.7">
@@ -574,14 +685,26 @@ function Security() {
               Infrastructure & Security
             </h2>
             <p className="mt-4 max-w-lg text-sm text-muted-foreground">
-              Multi-layered custody architecture engineered against state-level threat models.
-              Every withdrawal passes through a policy engine.
+              Multi-layered custody architecture engineered against state-level threat models. Every
+              withdrawal passes through a policy engine.
             </p>
             <div className="mt-8 space-y-4">
               {[
-                { i: ShieldCheck, t: "Bank-Grade Cold Storage", d: "98% of assets held in geo-distributed air-gapped vaults" },
-                { i: Fingerprint, t: "Multi-Signature Vaults", d: "Threshold-signed custody · M-of-N approval workflow" },
-                { i: Eye, t: "Real-time Threat Monitoring", d: "24/7 SOC, behavioral anomaly detection, on-chain forensics" },
+                {
+                  i: ShieldCheck,
+                  t: "Bank-Grade Cold Storage",
+                  d: "98% of assets held in geo-distributed air-gapped vaults",
+                },
+                {
+                  i: Fingerprint,
+                  t: "Multi-Signature Vaults",
+                  d: "Threshold-signed custody · M-of-N approval workflow",
+                },
+                {
+                  i: Eye,
+                  t: "Real-time Threat Monitoring",
+                  d: "24/7 SOC, behavioral anomaly detection, on-chain forensics",
+                },
               ].map((f) => (
                 <div key={f.t} className="flex gap-4 border-l-2 border-gold/60 pl-4">
                   <div className="rounded-md border border-gold/30 bg-gold/5 p-2 text-gold">
@@ -633,23 +756,36 @@ function CopyTradingPreview() {
             </thead>
             <tbody className="text-sm">
               {TRADERS.map((t, i) => (
-                <tr key={t.handle} className="border-t border-border bg-background hover:bg-surface/60">
+                <tr
+                  key={t.handle}
+                  className="border-t border-border bg-background hover:bg-surface/60"
+                >
                   <td className="px-4 py-4 font-mono text-muted-foreground">#{i + 1}</td>
                   <td className="px-4 py-4">
                     <div className="flex items-center gap-3">
                       <div className="flex h-9 w-9 items-center justify-center rounded-full border border-gold/30 bg-gold/5 font-mono text-xs font-bold text-gold">
-                        {t.name.split(" ").map((s) => s[0]).join("").slice(0, 2)}
+                        {t.name
+                          .split(" ")
+                          .map((s) => s[0])
+                          .join("")
+                          .slice(0, 2)}
                       </div>
                       <div>
                         <div className="font-semibold">{t.name}</div>
-                        <div className="text-[11px] text-muted-foreground">{t.handle} · <span className="text-gold">{t.badge}</span></div>
+                        <div className="text-[11px] text-muted-foreground">
+                          {t.handle} · <span className="text-gold">{t.badge}</span>
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-right font-mono font-semibold text-bull">+{t.roi.toFixed(1)}%</td>
+                  <td className="px-4 py-4 text-right font-mono font-semibold text-bull">
+                    +{t.roi.toFixed(1)}%
+                  </td>
                   <td className="px-4 py-4 text-right font-mono">{t.win.toFixed(1)}%</td>
                   <td className="px-4 py-4 text-right font-mono">${t.aum}</td>
-                  <td className="px-4 py-4 text-right font-mono text-muted-foreground">{t.followers.toLocaleString()}</td>
+                  <td className="px-4 py-4 text-right font-mono text-muted-foreground">
+                    {t.followers.toLocaleString()}
+                  </td>
                   <td className="px-4 py-4">
                     <div className="ml-auto h-8 w-28">
                       <SparkLine data={generateLine(i + 5)} color="var(--bull)" height={32} />
@@ -698,7 +834,8 @@ function Phone({ variant }: { variant: "dashboard" | "assets" }) {
         <div className="h-full w-full overflow-hidden rounded-[36px] bg-background">
           {/* status */}
           <div className="flex items-center justify-between px-5 pt-3 text-[10px] text-muted-foreground">
-            <span className="font-mono">9:41</span><span>· · ·</span>
+            <span className="font-mono">9:41</span>
+            <span>· · ·</span>
           </div>
 
           {/* gold header */}
@@ -722,7 +859,9 @@ function Phone({ variant }: { variant: "dashboard" | "assets" }) {
               <div className="mx-3 mt-3 rounded-xl bg-surface p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F7931A]/20 text-[10px] font-bold text-[#F7931A]">₿</div>
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#F7931A]/20 text-[10px] font-bold text-[#F7931A]">
+                      ₿
+                    </div>
                     <span className="text-xs font-semibold">BTC/USD</span>
                   </div>
                   <span className="font-mono text-[10px] text-bull">+2.34%</span>
@@ -732,10 +871,15 @@ function Phone({ variant }: { variant: "dashboard" | "assets" }) {
                 </div>
               </div>
               <div className="mx-3 mt-3">
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Recent Transactions</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Recent Transactions
+                </div>
                 <div className="mt-2 space-y-1.5">
                   {["BTC", "ETH", "SOL"].map((a, i) => (
-                    <div key={a} className="flex items-center justify-between rounded bg-surface px-2.5 py-2 text-[11px]">
+                    <div
+                      key={a}
+                      className="flex items-center justify-between rounded bg-surface px-2.5 py-2 text-[11px]"
+                    >
                       <span className="font-semibold">{a}/USD</span>
                       <span className="font-mono text-bull">+0.005 {a}</span>
                     </div>
@@ -745,14 +889,19 @@ function Phone({ variant }: { variant: "dashboard" | "assets" }) {
             </>
           ) : (
             <div className="mx-3 mt-3">
-              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Followed Assets</div>
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                Followed Assets
+              </div>
               <div className="mt-2 space-y-1.5">
                 {[
                   { a: "BTC", v: "+$5,869.30", p: "+4.21%" },
                   { a: "ETH", v: "+$1,258.82", p: "+1.95%" },
                   { a: "SOL", v: "-$28.26", p: "-0.62%" },
                 ].map((r) => (
-                  <div key={r.a} className="flex items-center justify-between rounded bg-surface px-2.5 py-2.5 text-[11px]">
+                  <div
+                    key={r.a}
+                    className="flex items-center justify-between rounded bg-surface px-2.5 py-2.5 text-[11px]"
+                  >
                     <span className="font-semibold">{r.a}/USD</span>
                     <div className="text-right font-mono">
                       <div className={r.v.startsWith("+") ? "text-bull" : "text-bear"}>{r.v}</div>
@@ -786,8 +935,8 @@ function FinalCTA() {
           Begin Your Journey
         </h2>
         <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground">
-          Onboard with institutional white-glove service. Custody, compliance,
-          and execution — all in one platform.
+          Onboard with institutional white-glove service. Custody, compliance, and execution — all
+          in one platform.
         </p>
         <div className="mt-10 flex justify-center">
           <Link
