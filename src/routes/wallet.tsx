@@ -15,13 +15,6 @@ import { toast } from "sonner";
 
 type Asset = "BTC" | "ETH" | "SOL" | "USDT";
 
-const DEPOSIT_ADDRESSES: Record<Asset, string> = {
-  BTC: "bc1qaureumvault0x9k3hp2rqz8mvy7w5tnxe4ucfd2",
-  ETH: "0xA8F4cBd2e9C1b7F3D6E8a25C9b14fE7d3C8B6a91",
-  SOL: "Aur3umVau1tSo1ana8KqM2P7yT4hN6dF9cJpR1eB",
-  USDT: "TAur3umTether8VaU1t9Kx7M2Pq4Yh5JcNd6FbR3",
-};
-
 export const Route = createFileRoute("/wallet")({
   head: () => ({
     meta: [
@@ -176,8 +169,9 @@ function Deposit() {
     queryKey: ["deposit-address", asset],
     queryFn: () => fetchAddress({ data: { asset } }),
     staleTime: 0,
+    refetchOnMount: "always",
   });
-  const depositAddress = addressQuery.data?.address ?? DEPOSIT_ADDRESSES[asset];
+  const depositAddress = addressQuery.data?.address ?? "";
 
   const m = useMutation({
     mutationFn: (v: { asset: Asset; amount: number }) => deposit({ data: v }),
@@ -229,19 +223,28 @@ function Deposit() {
             Deposit Address
           </div>
           <div className="mt-2 flex items-center gap-2 rounded-md border border-border bg-background px-3 py-3 font-mono text-xs">
-            <span className="truncate">{depositAddress}</span>
+            <span className="truncate">
+              {addressQuery.isLoading
+                ? "Loading address…"
+                : depositAddress || "Address not configured"}
+            </span>
             <button
               onClick={() => {
-                navigator.clipboard.writeText(depositAddress);
-                toast.success("Address copied");
+                if (depositAddress) {
+                  navigator.clipboard.writeText(depositAddress);
+                  toast.success("Address copied");
+                }
               }}
-              className="text-muted-foreground hover:text-gold"
+              disabled={!depositAddress}
+              className="text-muted-foreground hover:text-gold disabled:opacity-40"
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
           </div>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            Send only {asset} to this address. Other assets will be lost.
+            {depositAddress
+              ? `Send only ${asset} to this address. Other assets will be lost.`
+              : "An administrator has not configured this deposit address yet."}
           </p>
         </div>
 

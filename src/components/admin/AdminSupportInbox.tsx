@@ -101,7 +101,7 @@ export function AdminSupportInbox() {
           file.size > 5 * 1024 * 1024
         )
           throw new Error("Choose a JPEG, PNG, or WebP image up to 5 MB.");
-        type = file.type as typeof type;
+        type = file.type as "image/jpeg" | "image/png" | "image/webp";
         path = `${detail.data.conversation.user_id}/${crypto.randomUUID()}.${file.type.split("/")[1]}`;
         const uploaded = await supabase.storage
           .from("support-attachments")

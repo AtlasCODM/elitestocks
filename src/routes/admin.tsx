@@ -333,7 +333,7 @@ function Settings({ settings }: any) {
     BTC: settings?.bitcoin_wallet_address ?? "",
     ETH: settings?.ethereum_wallet_address ?? "",
     SOL: settings?.solana_wallet_address ?? "",
-    USDT: settings?.usdt_wallet_address ?? settings?.wallet_address ?? "",
+    USDT: settings?.usdt_wallet_address ?? "",
   });
   const [min, setMin] = useState(String(settings?.min_withdrawal ?? 0));
   const [max, setMax] = useState(String(settings?.max_withdrawal ?? 1000000));
@@ -346,7 +346,10 @@ function Settings({ settings }: any) {
       minWithdrawal: number;
       maxWithdrawal: number;
     }) => update({ data: payload }),
-    onSuccess: () => client.invalidateQueries({ queryKey: ["admin-state"] }),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: ["admin-state"] });
+      void client.invalidateQueries({ queryKey: ["deposit-address"] });
+    },
   });
   return (
     <section className="panel mt-8 max-w-2xl p-6">

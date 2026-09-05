@@ -99,7 +99,7 @@ export function SupportWidget() {
       let type: "image/jpeg" | "image/png" | "image/webp" | null = null;
       if (payload.file) {
         const optimized = await optimizeImage(payload.file);
-        type = optimized.type as typeof type;
+        type = optimized.type as "image/jpeg" | "image/png" | "image/webp";
         const extension = optimized.type.split("/")[1];
         path = `${user?.id}/${crypto.randomUUID()}.${extension}`;
         const upload = await supabase.storage

@@ -340,7 +340,7 @@ export function TestimonialGrid({ testimonials }: { testimonials: Testimonial[] 
           {testimonials.map((testimonial) => (
             <div key={testimonial.name} className="panel p-5">
               <div className="flex items-center gap-3">
-                <Avatar testimonial small />
+                <Avatar testimonial={testimonial} small />
                 <div>
                   <div className="text-sm font-semibold">{testimonial.name}</div>
                   <div className="text-xs text-muted-foreground">{testimonial.location}</div>
@@ -362,7 +362,7 @@ export function CompactTestimonial({ testimonial }: { testimonial: Testimonial }
   return (
     <section className="py-10">
       <div className="mx-auto flex max-w-[1200px] items-center gap-3 px-6">
-        <Avatar testimonial small />
+        <Avatar testimonial={testimonial} small />
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm text-foreground">“{testimonial.quote}”</div>
           <div className="mt-1 text-xs text-muted-foreground">
