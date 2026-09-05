@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { Header } from "@/components/site/Header";
+import { AdminSupportInbox } from "@/components/admin/AdminSupportInbox";
+import { featureFlags } from "@/lib/feature-flags";
 import { useAuth } from "@/hooks/useAuth";
 import {
   deleteAdminUser,
@@ -15,7 +17,7 @@ import {
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
-type Tab = "overview" | "transactions" | "users" | "settings";
+type Tab = "overview" | "transactions" | "users" | "settings" | "support";
 const pendingStatuses = ["pending", "pending_confirmation", "verifying"];
 
 function AdminPage() {
@@ -84,6 +86,7 @@ function AdminPage() {
     { id: "transactions", label: "Transactions" },
     { id: "users", label: "Users" },
     { id: "settings", label: "Settings" },
+    ...(featureFlags.inAppSupport ? [{ id: "support" as const, label: "Support" }] : []),
   ];
   return (
     <div className="min-h-screen bg-background">
@@ -126,6 +129,7 @@ function AdminPage() {
         )}
         {tab === "users" && <Users users={usersQuery.data?.users ?? []} query={usersQuery} />}
         {tab === "settings" && <Settings settings={state?.settings} />}
+        {tab === "support" && featureFlags.inAppSupport && <AdminSupportInbox />}
       </main>
     </div>
   );

@@ -11,6 +11,7 @@ import {
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { PlatformActivityNotifications } from "@/components/site/PlatformActivityNotifications";
+import { SupportWidget } from "@/components/site/SupportWidget";
 import { MaintenancePage } from "./maintenance";
 
 import appCss from "../styles.css?url";
@@ -148,6 +149,7 @@ function MaintenanceGate() {
     <>
       <Outlet />
       <PlatformActivityNotifications />
+      <SupportWidget />
       <Toaster />
     </>
   );
