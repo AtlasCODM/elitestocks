@@ -192,6 +192,14 @@ export function SupportWidget() {
     if (!draft.trim() && !attachment) return;
     sendMutation.mutate({ content: draft, file: attachment });
   };
+  const handleComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (!sendMutation.isPending && (draft.trim() || attachment)) {
+        sendMutation.mutate({ content: draft, file: attachment });
+      }
+    }
+  };
   return (
     <>
       {open && (
@@ -277,7 +285,7 @@ export function SupportWidget() {
                     className={`max-w-[85%] rounded-xl px-3 py-2 ${message.sender_role === "user" ? "bg-gold text-primary-foreground" : "bg-surface-2 text-foreground"}`}
                   >
                     {message.attachment_url && (
-                      <a href={message.attachment_url} target="_blank" rel="noreferrer">
+                      <a href={message.attachment_url}>
                         <img
                           src={message.attachment_url}
                           alt="Support attachment"
@@ -335,6 +343,7 @@ export function SupportWidget() {
                 <textarea
                   value={draft}
                   onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={handleComposerKeyDown}
                   rows={1}
                   maxLength={4000}
                   placeholder="Write a message…"
@@ -378,19 +387,21 @@ export function SupportWidget() {
           )}
         </section>
       )}
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="fixed bottom-20 right-4 z-[70] flex h-12 w-12 items-center justify-center rounded-full border border-gold/50 bg-gold text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6 md:right-6"
-        aria-label="Open support"
-      >
-        <Headphones className="h-5 w-5" />
-        {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bear px-1 text-[10px] font-bold text-white">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        )}
-      </button>
+      {!open && (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="fixed bottom-20 right-4 z-[70] flex h-12 w-12 items-center justify-center rounded-full border border-gold/50 bg-gold text-primary-foreground shadow-xl transition-transform hover:scale-105 md:bottom-6 md:right-6"
+          aria-label="Open support"
+        >
+          <Headphones className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-bear px-1 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      )}
     </>
   );
 }

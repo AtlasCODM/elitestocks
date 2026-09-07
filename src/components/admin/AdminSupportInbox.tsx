@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   CheckCheck,
   CheckCircle2,
+  Download,
   ImagePlus,
   Loader2,
   MessageSquare,
@@ -136,6 +137,12 @@ export function AdminSupportInbox() {
     onError: (reason) =>
       setError(reason instanceof Error ? reason.message : "Conversation could not be resolved."),
   });
+  const handleComposerKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      if (!sendMutation.isPending && (draft.trim() || file)) sendMutation.mutate();
+    }
+  };
   const items = (inbox.data?.conversations ?? []) as InboxItem[];
   return (
     <section className="mt-8">
@@ -241,13 +248,23 @@ export function AdminSupportInbox() {
                       className={`max-w-[78%] rounded-xl px-3 py-2 ${message.sender_role === "support" ? "bg-gold text-primary-foreground" : "bg-surface-2"}`}
                     >
                       {message.attachment_url && (
-                        <a href={message.attachment_url} target="_blank" rel="noreferrer">
-                          <img
-                            src={message.attachment_url}
-                            alt="Support attachment"
-                            className="mb-2 max-h-56 rounded-md"
-                          />
-                        </a>
+                        <div className="mb-2 flex items-start gap-2">
+                          <a href={message.attachment_url}>
+                            <img
+                              src={message.attachment_url}
+                              alt="Support attachment"
+                              className="mb-2 max-h-56 rounded-md"
+                            />
+                          </a>
+                          <a
+                            href={message.attachment_url}
+                            download
+                            className="rounded-md bg-background/80 p-2 text-foreground shadow-sm hover:bg-background"
+                            aria-label="Download attachment"
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </div>
                       )}
                       {message.content && (
                         <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
@@ -296,6 +313,7 @@ export function AdminSupportInbox() {
                     <textarea
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
+                      onKeyDown={handleComposerKeyDown}
                       maxLength={4000}
                       rows={1}
                       placeholder="Reply to customer…"
