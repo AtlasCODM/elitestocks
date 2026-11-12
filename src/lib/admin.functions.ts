@@ -17,7 +17,7 @@ async function isAdminUser(authClient: any, userId: string) {
   return Array.isArray(data) && data.length > 0;
 }
 
-async function requireAdmin(authClient: any, userId: string) {
+export async function requireAdmin(authClient: any, userId: string) {
   if (!(await isAdminUser(authClient, userId))) {
     throw new Error("Forbidden: administrator access required");
   }

@@ -1,14 +1,25 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Ticker } from "@/components/site/Ticker";
+import { InvestmentSummary } from "@/components/site/InvestmentSummary";
 import { useAuth } from "@/hooks/useAuth";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listInvestments, cancelInvestment } from "@/lib/investments.functions";
+import type { PositionSummary } from "@/lib/investment-engine";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, TrendingUp, Users, CheckCircle2, XCircle, Clock, AlertTriangle } from "lucide-react";
+import {
+  Loader2,
+  TrendingUp,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  AlertTriangle,
+  RefreshCw,
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,25 +42,38 @@ export const Route = createFileRoute("/investments")({
   head: () => ({
     meta: [
       { title: "My Investments — Elite Stocks" },
-      { name: "description", content: "Manage your active investment plans and copy trades." },
+      { name: "description", content: "Manage investment projections and copy trades." },
     ],
   }),
   component: InvestmentsPage,
 });
 
 type Kind = "investment" | "copy_trade";
-type Row = {
+type SourceRow = {
   id: string;
-  kind: Kind;
-  name: string;
-  amount: number;
-  profit_pct: number;
+  amount: number | string;
+  profit_pct: number | string;
   duration_days: number;
   status: string;
   created_at: string;
   matures_at: string;
-  completed_at: string | null;
+  completed_at?: string | null;
+  summary?: PositionSummary | null;
+  plan_tier?: string;
+  trader?: { name?: string | null } | null;
 };
+
+type Row = SourceRow & { kind: Kind; name: string };
+type InvestmentListState = { investments: SourceRow[]; copyTrades: SourceRow[] };
+
+function money(value: number | string) {
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function dateTime(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
 
 function InvestmentsPage() {
   const { user, loading } = useAuth();
@@ -62,23 +86,23 @@ function InvestmentsPage() {
 
   const fetchList = useServerFn(listInvestments);
   const cancelFn = useServerFn(cancelInvestment);
-
-  const { data, isLoading } = useQuery({
+  const query = useQuery({
     queryKey: ["investments-list"],
     queryFn: () => fetchList(),
     enabled: !!user,
     refetchInterval: 20000,
   });
+  const data = query.data as InvestmentListState | undefined;
 
-  const m = useMutation({
-    mutationFn: (v: { id: string; kind: Kind }) => cancelFn({ data: v }),
+  const mutation = useMutation({
+    mutationFn: (value: { id: string; kind: Kind }) => cancelFn({ data: value }),
     onSuccess: () => {
       toast.success("Investment cancelled — principal returned to wallet");
       qc.invalidateQueries({ queryKey: ["investments-list"] });
       qc.invalidateQueries({ queryKey: ["wallet-state"] });
       setCancelTarget(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (error: Error) => toast.error(error.message),
   });
 
   const [cancelTarget, setCancelTarget] = useState<Row | null>(null);
@@ -87,38 +111,27 @@ function InvestmentsPage() {
   if (loading || !user) return <div className="min-h-screen bg-background" />;
 
   const rows: Row[] = [
-    ...(data?.investments ?? []).map((i) => ({
-      id: i.id,
+    ...(data?.investments ?? []).map((investment) => ({
+      ...investment,
       kind: "investment" as Kind,
-      name: i.plan_tier,
-      amount: Number(i.amount),
-      profit_pct: Number(i.profit_pct),
-      duration_days: i.duration_days,
-      status: i.status,
-      created_at: i.created_at,
-      matures_at: i.matures_at,
-      completed_at: i.completed_at,
+      name: investment.plan_tier ?? "Investment plan",
     })),
-    ...(data?.copyTrades ?? []).map((c) => ({
-      id: c.id,
+    ...(data?.copyTrades ?? []).map((copy) => ({
+      ...copy,
       kind: "copy_trade" as Kind,
-      name: `Copy · ${c.trader?.name ?? "Trader"}`,
-      amount: Number(c.amount),
-      profit_pct: Number(c.profit_pct),
-      duration_days: c.duration_days,
-      status: c.status,
-      created_at: c.created_at,
-      matures_at: c.matures_at,
-      completed_at: c.completed_at,
+      name: `Copy · ${copy.trader?.name ?? "Trader"}`,
     })),
   ].sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at));
 
-  const active = rows.filter((r) => r.status === "active");
-  const totalActive = active.reduce((s, r) => s + r.amount, 0);
-  const expectedReturn = active.reduce(
-    (s, r) => s + r.amount * (1 + r.profit_pct / 100),
+  const active = rows.filter((row) => row.status === "active");
+  const totalActive = active.reduce(
+    (sum, row) => sum + Number(row.summary?.principal ?? row.amount),
     0,
   );
+  const projectedTotal = active.every((row) => row.summary)
+    ? active.reduce((sum, row) => sum + Number(row.summary?.projectedTotal ?? 0), 0)
+    : null;
+  const metricsAvailable = !!data && !query.isError;
 
   return (
     <div className="min-h-screen bg-background">
@@ -132,26 +145,52 @@ function InvestmentsPage() {
               My Investments
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-              All active investment plans and copy trades. Tap any row to view details, or cancel an active position to refund the principal to your wallet.
+              Review server-provided position summaries. Cancel an active position to refund
+              principal; projections are not earnings or guarantees.
             </p>
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-3">
-          <Stat label="Active positions" value={String(active.length)} icon={TrendingUp} />
           <Stat
-            label="Capital invested"
-            value={`$${totalActive.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            label="Active positions"
+            value={metricsAvailable ? String(active.length) : "Unavailable"}
+            icon={TrendingUp}
+          />
+          <Stat
+            label="Principal invested"
+            value={
+              metricsAvailable
+                ? `$${totalActive.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                : "Unavailable"
+            }
             icon={Users}
           />
           <Stat
-            label="Expected at maturity"
-            value={`$${expectedReturn.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
+            label="Projected total at maturity"
+            value={
+              !metricsAvailable || projectedTotal === null
+                ? "Unavailable"
+                : `$${projectedTotal.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+            }
             icon={CheckCircle2}
           />
         </div>
 
-        {isLoading ? (
+        {query.isError ? (
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 text-sm text-muted-foreground">
+            <span>
+              Portfolio data is temporarily unavailable. No empty state or zero balance is being
+              inferred.
+            </span>
+            <button
+              onClick={() => query.refetch()}
+              className="inline-flex items-center gap-2 rounded border border-border px-3 py-2 text-xs font-semibold text-foreground"
+            >
+              <RefreshCw className="h-3.5 w-3.5" /> Retry
+            </button>
+          </div>
+        ) : query.isLoading ? (
           <div className="mt-12 flex items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading…
           </div>
@@ -180,8 +219,8 @@ function InvestmentsPage() {
                 <tr>
                   <th className="px-4 py-3 text-left">Position</th>
                   <th className="px-4 py-3 text-left">Type</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3 text-right">Return</th>
+                  <th className="px-4 py-3 text-right">Principal</th>
+                  <th className="px-4 py-3 text-right">Projected total</th>
                   <th className="px-4 py-3 text-left">Started</th>
                   <th className="px-4 py-3 text-left">Matures</th>
                   <th className="px-4 py-3 text-left">Status</th>
@@ -189,57 +228,56 @@ function InvestmentsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
-                  const payout = r.amount * (1 + r.profit_pct / 100);
-                  return (
-                    <tr
-                      key={r.id}
-                      className="cursor-pointer border-t border-border bg-background transition-colors hover:bg-surface/60"
-                      onClick={() => setDetailRow(r)}
+                {rows.map((row) => (
+                  <tr
+                    key={`${row.kind}-${row.id}`}
+                    className="cursor-pointer border-t border-border bg-background transition-colors hover:bg-surface/60"
+                    onClick={() => setDetailRow(row)}
+                  >
+                    <td className="px-4 py-3 font-semibold">{row.name}</td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {row.kind === "investment" ? "Plan" : "Copy Trade"}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {money(row.summary?.principal ?? row.amount)} USDT
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-gold">
+                      {row.summary ? `${money(row.summary.projectedTotal)} USDT` : "Unavailable"}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {dateTime(row.created_at)}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {dateTime(row.summary?.maturityDate ?? row.matures_at)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={row.status} />
+                    </td>
+                    <td
+                      className="px-4 py-3 text-right"
+                      onClick={(event) => event.stopPropagation()}
                     >
-                      <td className="px-4 py-3 font-semibold">{r.name}</td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {r.kind === "investment" ? "Plan" : "Copy Trade"}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono">
-                        ${r.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-gold">
-                        +{r.profit_pct}% · ${payout.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {new Date(r.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {new Date(r.matures_at).toLocaleString()}
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={r.status} />
-                      </td>
-                      <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                        {r.status === "active" ? (
-                          <button
-                            onClick={() => setCancelTarget(r)}
-                            className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-bear hover:text-bear"
-                          >
-                            Cancel
-                          </button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                      {row.status === "active" ? (
+                        <button
+                          onClick={() => setCancelTarget(row)}
+                          className="rounded-md border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:border-bear hover:text-bear"
+                        >
+                          Cancel
+                        </button>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Detail drawer */}
-      <Sheet open={!!detailRow} onOpenChange={(o) => !o && setDetailRow(null)}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-background">
+      <Sheet open={!!detailRow} onOpenChange={(open) => !open && setDetailRow(null)}>
+        <SheetContent className="w-full overflow-y-auto bg-background sm:max-w-md">
           {detailRow && (
             <>
               <SheetHeader>
@@ -248,10 +286,9 @@ function InvestmentsPage() {
                 </div>
                 <SheetTitle className="font-display text-2xl">{detailRow.name}</SheetTitle>
                 <SheetDescription>
-                  Position opened {new Date(detailRow.created_at).toLocaleString()}
+                  Position opened {dateTime(detailRow.created_at)}
                 </SheetDescription>
               </SheetHeader>
-
               <div className="mt-6 space-y-4">
                 <div className="rounded-lg border border-border bg-surface p-4">
                   <div className="flex items-center justify-between">
@@ -261,38 +298,14 @@ function InvestmentsPage() {
                     <StatusBadge status={detailRow.status} />
                   </div>
                 </div>
-
-                <DetailRow label="Plan name" value={detailRow.name} />
-                <DetailRow
-                  label="Amount invested"
-                  value={`$${detailRow.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
-                />
-                <DetailRow label="Profit rate" value={`+${detailRow.profit_pct}%`} accent />
-                <DetailRow
-                  label="Expected return"
-                  value={`$${(
-                    detailRow.amount *
-                    (1 + detailRow.profit_pct / 100)
-                  ).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
-                  accent
-                />
+                <DetailRow label="Plan / trader" value={detailRow.name} />
                 <DetailRow label="Duration" value={`${detailRow.duration_days} days`} />
-                <DetailRow
-                  label="Start date"
-                  value={new Date(detailRow.created_at).toLocaleString()}
-                />
-                <DetailRow
-                  label="Maturity date"
-                  value={new Date(detailRow.matures_at).toLocaleString()}
-                />
+                <DetailRow label="Start date" value={dateTime(detailRow.created_at)} />
+                <InvestmentSummary summary={detailRow.summary} />
                 {detailRow.completed_at && (
-                  <DetailRow
-                    label="Completed"
-                    value={new Date(detailRow.completed_at).toLocaleString()}
-                  />
+                  <DetailRow label="Completed" value={dateTime(detailRow.completed_at)} />
                 )}
               </div>
-
               {detailRow.status === "active" && (
                 <div className="mt-6 border-t border-border pt-4">
                   <button
@@ -311,10 +324,9 @@ function InvestmentsPage() {
         </SheetContent>
       </Sheet>
 
-      {/* Cancel confirmation modal */}
       <AlertDialog
         open={!!cancelTarget}
-        onOpenChange={(o) => !o && !m.isPending && setCancelTarget(null)}
+        onOpenChange={(open) => !open && !mutation.isPending && setCancelTarget(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -326,22 +338,21 @@ function InvestmentsPage() {
               <div className="space-y-3 text-sm">
                 <p>
                   You are about to cancel{" "}
-                  <span className="font-semibold text-foreground">{cancelTarget?.name}</span>.
-                  Please review what will happen before confirming.
+                  <span className="font-semibold text-foreground">{cancelTarget?.name}</span>. The
+                  backend cancellation workflow refunds principal and forfeits any projection.
                 </p>
                 {cancelTarget && (
                   <div className="rounded-lg border border-border bg-surface p-3 text-xs">
                     <Line label="Principal refunded to wallet">
                       <span className="font-mono text-bull">
-                        +${cancelTarget.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        +{money(cancelTarget.summary?.principal ?? cancelTarget.amount)} USDT
                       </span>
                     </Line>
-                    <Line label="Expected return forfeited">
-                      <span className="font-mono text-bear">
-                        −${(
-                          cancelTarget.amount *
-                          (cancelTarget.profit_pct / 100)
-                        ).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    <Line label="Projected profit forfeited">
+                      <span className="font-mono text-muted-foreground">
+                        {cancelTarget.summary
+                          ? `−${money(cancelTarget.summary.projectedProfit)} USDT`
+                          : "Unavailable"}
                       </span>
                     </Line>
                     <Line label="New status">
@@ -349,28 +360,24 @@ function InvestmentsPage() {
                     </Line>
                   </div>
                 )}
-                <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
-                  <li>Your wallet balance will be credited immediately with the principal.</li>
-                  <li>
-                    A <span className="font-semibold text-foreground">return</span> entry will be
-                    recorded in your transaction ledger for auditability.
-                  </li>
-                  <li>This action cannot be undone — the position will not earn further profit.</li>
-                </ul>
+                <p className="text-muted-foreground">
+                  No projected or unverified profit will be credited by cancellation. This action
+                  cannot be undone.
+                </p>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={m.isPending}>Keep position</AlertDialogCancel>
+            <AlertDialogCancel disabled={mutation.isPending}>Keep position</AlertDialogCancel>
             <AlertDialogAction
-              disabled={m.isPending}
-              onClick={(e) => {
-                e.preventDefault();
-                if (cancelTarget) m.mutate({ id: cancelTarget.id, kind: cancelTarget.kind });
+              disabled={mutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (cancelTarget) mutation.mutate({ id: cancelTarget.id, kind: cancelTarget.kind });
               }}
               className="bg-bear text-white hover:bg-bear/90"
             >
-              {m.isPending ? (
+              {mutation.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Cancelling…
                 </>
@@ -381,31 +388,19 @@ function InvestmentsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       <Footer />
     </div>
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
+function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between border-b border-border/60 pb-2">
       <span className="text-xs uppercase tracking-wider text-muted-foreground">{label}</span>
-      <span className={`font-mono text-sm ${accent ? "text-gold" : "text-foreground"}`}>
-        {value}
-      </span>
+      <span className="font-mono text-sm text-foreground">{value}</span>
     </div>
   );
 }
-
 function Line({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between py-1">
@@ -414,7 +409,6 @@ function Line({ label, children }: { label: string; children: React.ReactNode })
     </div>
   );
 }
-
 function Stat({
   label,
   value,
@@ -434,7 +428,6 @@ function Stat({
     </div>
   );
 }
-
 function StatusBadge({ status }: { status: string }) {
   if (status === "active")
     return (

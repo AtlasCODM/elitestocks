@@ -10,7 +10,8 @@ import {
 } from "@/components/site/Testimonials";
 import { Ticker } from "@/components/site/Ticker";
 import { CandleChart, SparkLine } from "@/components/charts/CandleChart";
-import { generateLine, STRATEGIES, TRADERS } from "@/lib/market-data";
+import { generateLine, TRADERS } from "@/lib/market-data";
+import { useFinancialConfiguration } from "@/hooks/useFinancialConfiguration";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -570,6 +571,17 @@ function AIIntelligence() {
 }
 
 function Strategies() {
+  const configQuery = useFinancialConfiguration();
+  const config = configQuery.data?.config;
+  const colors = [
+    "from-zinc-700 to-zinc-800",
+    "from-zinc-700 to-zinc-800",
+    "from-zinc-700 to-zinc-800",
+    "from-amber-900/40 to-zinc-800",
+    "from-amber-800/50 to-zinc-800",
+    "from-amber-700/60 to-zinc-800",
+  ];
+
   return (
     <section className="relative border-y border-border bg-surface/30 py-24">
       <div className="mx-auto max-w-[1600px] px-6">
@@ -583,50 +595,72 @@ function Strategies() {
             </h2>
           </div>
           <p className="max-w-md text-sm text-muted-foreground">
-            Fixed-term yield contracts. Each tier defines a fixed runtime and profit target.
+            Fixed-term projection modules. Each tier defines a configurable runtime and simple
+            total-term projection; actual profit requires verified performance.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {STRATEGIES.map((s, i) => (
-            <div
-              key={s.tier}
-              className={`group panel relative overflow-hidden bg-gradient-to-br ${s.color} p-6 transition-all hover:border-gold/60`}
-            >
-              <div className="pointer-events-none absolute inset-0 grid-bg-sm opacity-20" />
-              <div className="relative flex items-start justify-between">
-                <div>
-                  <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
-                    Tier {i + 1}
-                  </div>
-                  <div className="mt-1 font-display text-3xl font-bold">{s.tier}</div>
-                </div>
-                <span className="rounded border border-gold/40 bg-gold/10 px-2 py-1 font-mono text-[11px] text-gold">
-                  {s.days}D
-                </span>
-              </div>
-              <div className="relative mt-6 flex items-end justify-between">
-                <div>
-                  <div className="text-[11px] uppercase text-muted-foreground">Target Return</div>
-                  <div className="font-display text-4xl font-bold text-gold gold-text-glow">
-                    {s.roi}%
-                  </div>
-                </div>
-                <div className="text-right text-[11px] text-muted-foreground">
-                  <div>Min entry</div>
-                  <div className="font-mono text-foreground">${s.min.toLocaleString()}</div>
-                </div>
-              </div>
-              <Link
-                to="/strategies"
-                className="relative mt-6 flex items-center justify-between rounded-md border border-border bg-background/40 px-3 py-2 text-xs font-semibold transition-colors group-hover:border-gold/50 group-hover:text-gold"
+        {configQuery.isLoading ? (
+          <div className="mt-10 rounded-lg border border-border bg-surface p-6 text-sm text-muted-foreground">
+            Loading current strategy configuration…
+          </div>
+        ) : configQuery.isError || !config ? (
+          <div className="mt-10 rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 text-sm text-muted-foreground">
+            Strategy configuration is temporarily unavailable. Investment actions remain disabled
+            until the current settings can be loaded.
+          </div>
+        ) : (
+          <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {config.plans.map((s, i) => (
+              <div
+                key={s.tier}
+                className={`group panel relative overflow-hidden bg-gradient-to-br ${colors[i] ?? colors[0]} p-6 transition-all hover:border-gold/60`}
               >
-                Activate strategy
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          ))}
-        </div>
+                <div className="pointer-events-none absolute inset-0 grid-bg-sm opacity-20" />
+                <div className="relative flex items-start justify-between">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
+                      Tier {i + 1}
+                    </div>
+                    <div className="mt-1 font-display text-3xl font-bold">{s.tier}</div>
+                  </div>
+                  <span
+                    className={`rounded border px-2 py-1 font-mono text-[11px] ${s.enabled ? "border-gold/40 bg-gold/10 text-gold" : "border-border bg-surface text-muted-foreground"}`}
+                  >
+                    {s.enabled ? `${s.days}D` : "Unavailable"}
+                  </span>
+                </div>
+                <div className="relative mt-6 flex items-end justify-between">
+                  <div>
+                    <div className="text-[11px] uppercase text-muted-foreground">
+                      Projected profit
+                    </div>
+                    <div className="font-display text-4xl font-bold text-gold gold-text-glow">
+                      {s.profitPct}%
+                    </div>
+                  </div>
+                  <div className="text-right text-[11px] text-muted-foreground">
+                    <div>Investment range</div>
+                    <div className="font-mono text-foreground">
+                      ${config.minInvestment.toLocaleString()}–$
+                      {config.maxInvestment.toLocaleString()}
+                    </div>
+                  </div>
+                </div>
+                <div className="relative mt-3 text-[11px] text-muted-foreground">
+                  Simple total-term projection · not guaranteed
+                </div>
+                <Link
+                  to="/strategies"
+                  className={`relative mt-6 flex items-center justify-between rounded-md border border-border bg-background/40 px-3 py-2 text-xs font-semibold transition-colors ${s.enabled ? "group-hover:border-gold/50 group-hover:text-gold" : "pointer-events-none opacity-60"}`}
+                >
+                  {s.enabled ? "View strategy" : "Currently unavailable"}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

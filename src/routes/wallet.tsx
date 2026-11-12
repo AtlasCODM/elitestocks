@@ -3,13 +3,17 @@ import { Header } from "@/components/site/Header";
 import { Footer } from "@/components/site/Footer";
 import { Ticker } from "@/components/site/Ticker";
 import { ASSETS } from "@/lib/market-data";
+import { useFinancialConfiguration } from "@/hooks/useFinancialConfiguration";
+import type { FinancialConfiguration } from "@/lib/financial-config";
 import { useAuth } from "@/hooks/useAuth";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getWalletState } from "@/lib/wallet.functions";
 import { confirmDeposit, getDepositAddress } from "@/lib/deposit.functions";
 import { createWithdrawal } from "@/lib/withdraw.functions";
-import { useEffect, useState } from "react";
+import { parseFinancialAmount } from "@/lib/financial-amount";
+import { describeReturnTransaction } from "@/lib/return-details";
+import { Fragment, useEffect, useState } from "react";
 import { ArrowDownToLine, ArrowUpFromLine, Copy, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -38,7 +42,9 @@ function WalletPage() {
   }, [user, loading, navigate]);
 
   const fetchState = useServerFn(getWalletState);
-  const { data, isLoading } = useQuery({
+  const configQuery = useFinancialConfiguration();
+  const config = configQuery.data?.config;
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["wallet-state"],
     queryFn: () => fetchState(),
     enabled: !!user,
@@ -55,6 +61,7 @@ function WalletPage() {
     balances.ETH * (ASSETS.find((a) => a.symbol === "ETH")?.price ?? 0) +
     balances.SOL * (ASSETS.find((a) => a.symbol === "SOL")?.price ?? 0) +
     balances.USDT;
+  const portfolioUnavailable = isError || !data;
 
   return (
     <div className="min-h-screen bg-background">
@@ -73,7 +80,9 @@ function WalletPage() {
               Total Portfolio Value
             </div>
             <div className="font-mono text-3xl font-bold text-gold gold-text-glow">
-              ${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              {portfolioUnavailable
+                ? "Unavailable"
+                : `$${totalUsd.toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
             </div>
           </div>
         </div>
@@ -93,15 +102,29 @@ function WalletPage() {
           ))}
         </div>
 
-        {isLoading ? (
+        {isLoading || configQuery.isLoading ? (
           <div className="mt-12 flex items-center justify-center text-sm text-muted-foreground">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading wallet…
+          </div>
+        ) : isError || !data || configQuery.isError || !config ? (
+          <div className="mt-12 rounded-lg border border-amber-500/30 bg-amber-500/5 p-6 text-sm text-muted-foreground">
+            Wallet or financial configuration is temporarily unavailable. Balances and financial
+            actions are not replaced with zero values.{" "}
+            <button
+              onClick={() => {
+                refetch();
+                configQuery.refetch();
+              }}
+              className="ml-1 text-foreground underline"
+            >
+              Retry
+            </button>
           </div>
         ) : (
           <>
             {tab === "overview" && <Overview balances={balances} />}
-            {tab === "deposit" && <Deposit />}
-            {tab === "withdraw" && <Withdraw balances={balances} />}
+            {tab === "deposit" && <Deposit config={config} />}
+            {tab === "withdraw" && <Withdraw balances={balances} config={config} />}
             {tab === "history" && <History transactions={data?.transactions ?? []} />}
           </>
         )}
@@ -159,7 +182,7 @@ function Overview({ balances }: { balances: Record<Asset, number> }) {
   );
 }
 
-function Deposit() {
+function Deposit({ config }: { config: FinancialConfiguration }) {
   const qc = useQueryClient();
   const deposit = useServerFn(confirmDeposit);
   const fetchAddress = useServerFn(getDepositAddress);
@@ -174,7 +197,7 @@ function Deposit() {
   const depositAddress = addressQuery.data?.address ?? "";
 
   const m = useMutation({
-    mutationFn: (v: { asset: Asset; amount: number }) => deposit({ data: v }),
+    mutationFn: (v: { asset: Asset; amount: string }) => deposit({ data: v }),
     onSuccess: () => {
       toast.success("Deposit submitted — funds will be credited in ~5 minutes");
       setAmount("");
@@ -184,9 +207,19 @@ function Deposit() {
   });
 
   const handle = () => {
-    const n = parseFloat(amount);
-    if (!n || n <= 0) return toast.error("Enter a valid amount");
-    m.mutate({ asset, amount: n });
+    const raw = amount.trim();
+    try {
+      parseFinancialAmount(raw);
+    } catch (error) {
+      return toast.error(error instanceof Error ? error.message : "Invalid financial amount");
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0 || n < config.minDeposit || n > config.maxDeposit) {
+      return toast.error(
+        `Deposit must be between ${config.minDeposit} and ${config.maxDeposit} ${asset}`,
+      );
+    }
+    m.mutate({ asset, amount: raw });
   };
 
   return (
@@ -246,6 +279,10 @@ function Deposit() {
               ? `Send only ${asset} to this address. Other assets will be lost.`
               : "An administrator has not configured this deposit address yet."}
           </p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Allowed amount: {config.minDeposit.toLocaleString()}–
+            {config.maxDeposit.toLocaleString()} {asset}
+          </p>
         </div>
 
         <div className="mt-5">
@@ -293,7 +330,13 @@ function Deposit() {
   );
 }
 
-function Withdraw({ balances }: { balances: Record<Asset, number> }) {
+function Withdraw({
+  balances,
+  config,
+}: {
+  balances: Record<Asset, number>;
+  config: FinancialConfiguration;
+}) {
   const qc = useQueryClient();
   const wd = useServerFn(createWithdrawal);
   const [asset, setAsset] = useState<Asset>("USDT");
@@ -301,7 +344,7 @@ function Withdraw({ balances }: { balances: Record<Asset, number> }) {
   const [address, setAddress] = useState("");
 
   const m = useMutation({
-    mutationFn: (v: { asset: Asset; amount: number; address: string }) => wd({ data: v }),
+    mutationFn: (v: { asset: Asset; amount: string; address: string }) => wd({ data: v }),
     onSuccess: () => {
       toast.success("Withdrawal submitted");
       setAmount("");
@@ -312,11 +355,21 @@ function Withdraw({ balances }: { balances: Record<Asset, number> }) {
   });
 
   const handle = () => {
-    const n = parseFloat(amount);
-    if (!n || n <= 0) return toast.error("Enter a valid amount");
+    const raw = amount.trim();
+    try {
+      parseFinancialAmount(raw);
+    } catch (error) {
+      return toast.error(error instanceof Error ? error.message : "Invalid financial amount");
+    }
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n <= 0 || n < config.minWithdrawal || n > config.maxWithdrawal) {
+      return toast.error(
+        `Withdrawal must be between ${config.minWithdrawal} and ${config.maxWithdrawal} ${asset}`,
+      );
+    }
     if (n > balances[asset]) return toast.error("Insufficient balance");
     if (!address || address.length < 10) return toast.error("Enter a valid destination address");
-    m.mutate({ asset, amount: n, address });
+    m.mutate({ asset, amount: raw, address });
   };
 
   return (
@@ -348,6 +401,10 @@ function Withdraw({ balances }: { balances: Record<Asset, number> }) {
           </div>
           <div className="mt-2 font-mono text-[11px] text-muted-foreground">
             Available: {balances[asset].toLocaleString(undefined, { maximumFractionDigits: 6 })}{" "}
+            {asset}
+          </div>
+          <div className="mt-1 font-mono text-[11px] text-muted-foreground">
+            Allowed: {config.minWithdrawal.toLocaleString()}–{config.maxWithdrawal.toLocaleString()}{" "}
             {asset}
           </div>
         </div>
@@ -404,6 +461,7 @@ type TxRow = {
   amount: number | string;
   status: string;
   created_at: string;
+  metadata?: unknown;
 };
 
 function History({ transactions }: { transactions: TxRow[] }) {
@@ -429,26 +487,35 @@ function History({ transactions }: { transactions: TxRow[] }) {
             </tr>
           )}
           {transactions.map((t) => (
-            <tr key={t.id} className="border-t border-border bg-background">
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                {new Date(t.created_at).toLocaleString()}
-              </td>
-              <td className="px-4 py-3">
-                <span className="rounded bg-gold/15 px-2 py-0.5 text-xs font-semibold capitalize text-gold">
-                  {t.type.replace("_", " ")}
-                </span>
-              </td>
-              <td className="px-4 py-3 font-semibold">{t.asset}</td>
-              <td className="px-4 py-3 text-right font-mono">
-                {Number(t.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
-              </td>
-              <td className="px-4 py-3">
-                <StatusBadge status={t.status} />
-              </td>
-              <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
-                {t.id.slice(0, 12)}…
-              </td>
-            </tr>
+            <Fragment key={t.id}>
+              <tr key={t.id} className="border-t border-border bg-background">
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {new Date(t.created_at).toLocaleString()}
+                </td>
+                <td className="px-4 py-3">
+                  <span className="rounded bg-gold/15 px-2 py-0.5 text-xs font-semibold capitalize text-gold">
+                    {t.type.replace("_", " ")}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-semibold">{t.asset}</td>
+                <td className="px-4 py-3 text-right font-mono">
+                  {Number(t.amount).toLocaleString(undefined, { maximumFractionDigits: 6 })}
+                </td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={t.status} />
+                </td>
+                <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
+                  {t.id.slice(0, 12)}…
+                </td>
+              </tr>
+              {describeReturnTransaction(t) && (
+                <tr className="border-t border-border/50 bg-surface/40">
+                  <td colSpan={6} className="px-4 py-3 text-xs text-muted-foreground">
+                    {describeReturnTransaction(t)}
+                  </td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>

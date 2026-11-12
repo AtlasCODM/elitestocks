@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Clock3, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { Header } from "@/components/site/Header";
 import { AdminSupportInbox } from "@/components/admin/AdminSupportInbox";
+import { InvestmentEngineConfiguration } from "@/components/admin/InvestmentEngineConfiguration";
 import { featureFlags } from "@/lib/feature-flags";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -17,7 +18,7 @@ import {
 } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin")({ component: AdminPage });
-type Tab = "overview" | "transactions" | "users" | "settings" | "support";
+type Tab = "overview" | "transactions" | "users" | "settings" | "support" | "investment-engine";
 const pendingStatuses = ["pending", "pending_confirmation", "verifying"];
 
 function AdminPage() {
@@ -86,6 +87,7 @@ function AdminPage() {
     { id: "transactions", label: "Transactions" },
     { id: "users", label: "Users" },
     { id: "settings", label: "Settings" },
+    { id: "investment-engine", label: "Investment Engine" },
     ...(featureFlags.inAppSupport ? [{ id: "support" as const, label: "Support" }] : []),
   ];
   return (
@@ -129,6 +131,7 @@ function AdminPage() {
         )}
         {tab === "users" && <Users users={usersQuery.data?.users ?? []} query={usersQuery} />}
         {tab === "settings" && <Settings settings={state?.settings} />}
+        {tab === "investment-engine" && <InvestmentEngineConfiguration />}
         {tab === "support" && featureFlags.inAppSupport && <AdminSupportInbox />}
       </main>
     </div>
@@ -349,13 +352,16 @@ function Settings({ settings }: any) {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: ["admin-state"] });
       void client.invalidateQueries({ queryKey: ["deposit-address"] });
+      void client.invalidateQueries({ queryKey: ["financial-config"] });
+      void client.invalidateQueries({ queryKey: ["admin-financial-config"] });
     },
   });
   return (
     <section className="panel mt-8 max-w-2xl p-6">
       <h2 className="font-semibold">Platform settings</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Changes are persistent and enforced by the withdrawal service.
+        Changes are persistent and enforced by the withdrawal service. Withdrawal limits remain
+        compatible with the Investment Engine Configuration panel.
       </p>
       <div className="mt-6 space-y-5">
         {(["BTC", "ETH", "SOL", "USDT"] as const).map((asset) => (

@@ -8,10 +8,13 @@ import {
   Scripts,
   useLocation,
 } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { AuthProvider } from "@/hooks/useAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { PlatformActivityNotifications } from "@/components/site/PlatformActivityNotifications";
 import { SupportWidget } from "@/components/site/SupportWidget";
+import { loadPublicRuntimeConfiguration } from "@/integrations/supabase/client";
+import { getAppConfig, subscribeToAppConfig } from "@/lib/app-config";
 import { MaintenancePage } from "./maintenance";
 
 import appCss from "../styles.css?url";
@@ -38,14 +41,15 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  const message = error instanceof Error ? error.message : "An unexpected error occurred.";
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
         <button
           onClick={() => {
             router.invalidate();
@@ -143,8 +147,19 @@ function RootComponent() {
 
 function MaintenanceGate() {
   const location = useLocation();
-  const enabled = import.meta.env.VITE_MAINTENANCE_MODE === "true";
-  if (enabled && location.pathname !== "/maintenance") return <MaintenancePage />;
+  const [configuration, setConfiguration] = useState(getAppConfig);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToAppConfig(setConfiguration);
+    void loadPublicRuntimeConfiguration();
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  if (configuration.maintenanceMode && location.pathname !== "/maintenance") {
+    return <MaintenancePage />;
+  }
   return (
     <>
       <Outlet />

@@ -1,0 +1,19 @@
+{
+  "routes": [
+    { "path": "/", "title": "Home" },
+    { "path": "/admin", "title": "Admin Dashboard" },
+    { "path": "/ai", "title": "AI Intelligence" },
+    { "path": "/copy-trading", "title": "Copy Trading" },
+    { "path": "/history", "title": "Transaction History" },
+    { "path": "/investments", "title": "My Investments" },
+    { "path": "/login", "title": "Sign In" },
+    { "path": "/maintenance", "title": "Maintenance" },
+    { "path": "/markets", "title": "Markets" },
+    { "path": "/profile", "title": "Profile" },
+    { "path": "/security", "title": "Security" },
+    { "path": "/signup", "title": "Sign Up" },
+    { "path": "/strategies", "title": "Investment Plans" },
+    { "path": "/terminal", "title": "Trading Terminal" },
+    { "path": "/wallet", "title": "Wallet" }
+  ]
+}

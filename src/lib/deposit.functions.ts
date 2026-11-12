@@ -4,10 +4,12 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Asset } from "@/lib/platform.server";
+import { FinancialAmountSchema } from "./financial-amount";
 
+const AssetSchema = z.enum(["BTC", "ETH", "SOL", "USDT"]);
 const Input = z.object({
-  asset: z.enum(["BTC", "ETH", "SOL", "USDT"]),
-  amount: z.number().positive().max(1_000_000),
+  asset: AssetSchema,
+  amount: FinancialAmountSchema,
 });
 
 const walletColumn = {
@@ -26,43 +28,29 @@ const legacyWalletColumn = {
 async function configuredDepositAddress(asset: Asset) {
   const { data: settings, error } = await (supabaseAdmin as any)
     .from("platform_settings")
-    // Select all columns so deployments with legacy address columns remain
-    // readable during the non-destructive transition.
     .select("*")
     .eq("id", true)
     .single();
   if (error) throw new Error(`Unable to load deposit settings: ${error.message}`);
   const configured = String(settings?.[walletColumn[asset]] ?? "").trim();
   if (configured) return configured;
-  return String(settings?.[legacyWalletColumn[asset]] ?? "").trim();
+  return String(settings?.[legacyWalletColumn[asset]] ?? settings?.wallet_address ?? "").trim();
 }
 
 export const getDepositAddress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { asset: Asset }) =>
-    z.object({ asset: z.enum(["BTC", "ETH", "SOL", "USDT"]) }).parse(d),
-  )
+  .inputValidator((d: { asset: Asset }) => z.object({ asset: AssetSchema }).parse(d))
   .handler(async ({ data }) => ({ address: await configuredDepositAddress(data.asset) }));
 
 export const confirmDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => Input.parse(d))
   .handler(async ({ data, context }) => {
-    const address = await configuredDepositAddress(data.asset);
-    if (!address) throw new Error(`${data.asset} deposit address is not configured`);
-    const { data: tx, error } = await supabaseAdmin
-      .from("transactions")
-      .insert({
-        user_id: context.userId,
-        type: "deposit",
-        amount: data.amount,
-        asset: data.asset,
-        status: "pending_confirmation",
-        address,
-        metadata: { source: "user_confirm" },
-      })
-      .select()
-      .single();
+    const { data: result, error } = await supabaseAdmin.rpc("engine_confirm_deposit", {
+      p_user_id: context.userId,
+      p_asset: data.asset,
+      p_amount: data.amount,
+    });
     if (error) throw new Error(error.message);
-    return { id: tx.id, status: tx.status };
+    return result as { id: string; status: string };
   });

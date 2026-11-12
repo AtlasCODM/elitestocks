@@ -1,3 +1,9 @@
+import { getAppConfig, subscribeToAppConfig } from "./app-config";
+
 export const featureFlags = {
-  inAppSupport: import.meta.env.VITE_FEATURE_IN_APP_SUPPORT === "true",
-} as const;
+  inAppSupport: getAppConfig().inAppSupport,
+};
+
+subscribeToAppConfig((configuration) => {
+  featureFlags.inAppSupport = configuration.inAppSupport;
+});
