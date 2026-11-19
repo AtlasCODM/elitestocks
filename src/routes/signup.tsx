@@ -26,37 +26,39 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [confirmationEmail, setConfirmationEmail] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) navigate({ to: "/wallet" });
+    if (user) void navigate({ to: "/wallet" });
   }, [user, navigate]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (loading || configurationError) return;
     if (password.length < 8) return toast.error("Password must be at least 8 characters");
 
     setBusy(true);
+    setConfirmationEmail(null);
     try {
       const client = await ensureSupabaseClient();
-      const { error } = await client.auth.signUp({
-        email,
+      const { data, error } = await client.auth.signUp({
+        email: email.trim(),
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/wallet`,
-          data: { display_name: name },
+          data: { display_name: name.trim() },
         },
       });
       if (error) return toast.error(error.message);
 
-      // Auto sign-in (no email verification required)
-      const { error: signInErr } = await client.auth.signInWithPassword({ email, password });
-      if (signInErr) {
-        toast.success("Account created — please sign in");
-        return navigate({ to: "/login" });
+      if (data.session) {
+        toast.success("Welcome to Elite Stocks! Your account has been created.");
+        await navigate({ to: "/wallet" });
+        return;
       }
-      toast.success("Welcome to Elite Stocks! Your account has been created.");
-      navigate({ to: "/wallet" });
+
+      setConfirmationEmail(email.trim());
+      toast.success("Account created. Check your email for the next step.");
     } catch (error) {
       toast.error(authErrorMessage(error));
     } finally {
@@ -84,6 +86,15 @@ function SignupPage() {
             </Link>
           </p>
         )}
+        {confirmationEmail && (
+          <p
+            role="status"
+            className="mt-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-center text-xs text-muted-foreground"
+          >
+            Your account was created for {confirmationEmail}. Check your inbox for any required
+            confirmation before signing in.
+          </p>
+        )}
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -92,7 +103,7 @@ function SignupPage() {
             <input
               required
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(event) => setName(event.target.value)}
               className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-gold"
             />
           </div>
@@ -104,7 +115,7 @@ function SignupPage() {
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(event) => setEmail(event.target.value)}
               className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-gold"
             />
           </div>
@@ -115,8 +126,9 @@ function SignupPage() {
             <input
               type="password"
               required
+              minLength={8}
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-gold"
             />
             <p className="mt-1 text-[10px] text-muted-foreground">Minimum 8 characters</p>

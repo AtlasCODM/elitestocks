@@ -72,3 +72,33 @@ test("public configuration response excludes privileged credentials", () => {
     /process\.env\.(?:SUPABASE_SERVICE_ROLE_KEY|SUPABASE_PUBLISHABLE_KEY|SUPABASE_URL)/,
   );
 });
+
+test("registration uses the returned Supabase session and password recovery is implemented", () => {
+  const signup = source("src/routes/signup.tsx");
+  assert.match(signup, /data\.session/);
+  assert.doesNotMatch(signup, /signInWithPassword/);
+  const recovery = source("src/routes/reset-password.tsx");
+  assert.match(recovery, /resetPasswordForEmail/);
+  assert.match(recovery, /updateUser\(\{ password \}\)/);
+  assert.match(source("src/routes/login.tsx"), /Forgot password\?/);
+});
+
+test("public Supabase values are centralized and support attachment signing is owner-scoped", () => {
+  const serverConfig = source("src/lib/config.server.ts");
+  assert.doesNotMatch(serverConfig, /SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_ANON_KEY/);
+  const envExample = source(".env.example");
+  assert.doesNotMatch(envExample, /SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_ANON_KEY/);
+  assert.match(source("src/lib/support.functions.ts"), /ownerId !== context\.userId/);
+});
+
+test("security migration removes self-editable profile privileges and time-only financial settlement", () => {
+  const migration = source(
+    "supabase/migrations/20261119210000_auth_financial_security_hardening.sql",
+  );
+  assert.match(migration, /REVOKE UPDATE ON public\.profiles/);
+  assert.match(migration, /GRANT UPDATE \(display_name\) ON public\.profiles TO authenticated/);
+  assert.match(migration, /auth\.uid\(\) IS NULL OR actor IS NOT DISTINCT FROM auth\.uid\(\)/);
+  const processor = migration.split("CREATE OR REPLACE FUNCTION public.engine_process_jobs()")[1];
+  assert.doesNotMatch(processor, /type = 'deposit' AND status IN/);
+  assert.doesNotMatch(processor, /type = 'withdrawal' AND status IN/);
+});

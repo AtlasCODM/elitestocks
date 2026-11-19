@@ -8,25 +8,12 @@ export type PublicRuntimeConfiguration = {
   configured: boolean;
 };
 
-function readLegacyEnv(name: string): string | undefined {
-  const environment = (import.meta as ImportMeta & { env?: Record<string, unknown> }).env ?? {};
-  const value = environment[name];
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-function readLegacyBoolean(name: string): boolean {
-  return readLegacyEnv(name)?.toLowerCase() === "true";
-}
-
-const initialConnection = resolvePublicSupabaseConnection(
-  readLegacyEnv("VITE_SUPABASE_URL"),
-  readLegacyEnv("VITE_SUPABASE_PUBLISHABLE_KEY") ?? readLegacyEnv("VITE_SUPABASE_ANON_KEY"),
-);
+const initialConnection = resolvePublicSupabaseConnection();
 
 let currentConfiguration: PublicRuntimeConfiguration = {
   ...initialConnection,
-  maintenanceMode: readLegacyBoolean("VITE_MAINTENANCE_MODE"),
-  inAppSupport: readLegacyBoolean("VITE_FEATURE_IN_APP_SUPPORT"),
+  maintenanceMode: false,
+  inAppSupport: false,
 };
 
 const listeners = new Set<(configuration: PublicRuntimeConfiguration) => void>();

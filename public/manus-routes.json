@@ -10,6 +10,7 @@
     { "path": "/maintenance", "title": "Maintenance" },
     { "path": "/markets", "title": "Markets" },
     { "path": "/profile", "title": "Profile" },
+    { "path": "/reset-password", "title": "Reset Password" },
     { "path": "/security", "title": "Security" },
     { "path": "/signup", "title": "Sign Up" },
     { "path": "/strategies", "title": "Investment Plans" },

@@ -104,6 +104,11 @@ function LoginPage() {
             {busy ? "Signing in…" : loading ? "Checking authentication…" : "Sign In"}
           </button>
         </form>
+        <p className="mt-3 text-right text-xs">
+          <Link to="/reset-password" className="text-gold hover:underline">
+            Forgot password?
+          </Link>
+        </p>
         <p className="mt-6 text-center text-xs text-muted-foreground">
           New to Elite Stocks?{" "}
           <Link to="/signup" className="text-gold hover:underline">

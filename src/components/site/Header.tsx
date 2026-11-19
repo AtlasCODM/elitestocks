@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getAdminAccess } from "@/lib/admin.functions";
+import { toast } from "sonner";
 
 const NAV = [
   { to: "/terminal", label: "Dashboard" },
@@ -39,9 +40,13 @@ export function Header() {
   }, [open]);
 
   const handleSignOut = async () => {
-    await signOut();
-    setOpen(false);
-    navigate({ to: "/" });
+    try {
+      await signOut();
+      setOpen(false);
+      await navigate({ to: "/" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to sign out.");
+    }
   };
 
   return (

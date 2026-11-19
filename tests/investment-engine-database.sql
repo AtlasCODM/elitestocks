@@ -80,16 +80,21 @@ BEGIN
  PERFORM pg_temp.assert((SELECT status='pending_confirmation' AND address='test-usdt-address' FROM transactions WHERE id=deposit_id),'deposit workflow preserves configured address and pending state');
  UPDATE transactions SET created_at=clock_timestamp()-interval '10 minutes' WHERE id=deposit_id;
  PERFORM engine_process_jobs(); PERFORM engine_process_jobs();
- PERFORM pg_temp.assert((SELECT balance=before_balance+100 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'repeated deposit processing credits once');
+ PERFORM pg_temp.assert((SELECT balance=before_balance FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'elapsed time alone never credits an unverified deposit');
+ PERFORM pg_temp.assert((SELECT status='pending_confirmation' FROM transactions WHERE id=deposit_id),'unverified deposit remains pending for authorized review');
  BEGIN
   PERFORM engine_create_withdrawal('00000000-0000-0000-0000-000000000002','USDT',19,'destination-address');
   RAISE EXCEPTION 'below withdrawal limit succeeded';
  EXCEPTION WHEN OTHERS THEN IF SQLERRM='below withdrawal limit succeeded' THEN RAISE; END IF; END;
  result:=engine_create_withdrawal('00000000-0000-0000-0000-000000000002','USDT',30,'destination-address');
  withdrawal_id:=(result->>'id')::uuid;
- PERFORM pg_temp.assert((SELECT balance=before_balance+70 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'withdrawal debits exactly once');
+ PERFORM pg_temp.assert((SELECT balance=before_balance-30 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'withdrawal debits exactly once');
+ UPDATE transactions SET created_at=clock_timestamp()-interval '10 minutes' WHERE id=withdrawal_id;
+ PERFORM engine_process_jobs(); PERFORM engine_process_jobs();
+ PERFORM pg_temp.assert((SELECT status='pending' FROM transactions WHERE id=withdrawal_id),'elapsed time alone never marks an external payout successful');
+ PERFORM pg_temp.assert((SELECT balance=before_balance-30 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'unverified payout processing does not alter the balance');
  PERFORM admin_update_transaction(withdrawal_id,'decline','00000000-0000-0000-0000-000000000001');
- PERFORM pg_temp.assert((SELECT balance=before_balance+100 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'existing administrative decline refunds withdrawal');
+ PERFORM pg_temp.assert((SELECT balance=before_balance FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'existing administrative decline refunds withdrawal');
 
  c:=jsonb_set(c,'{plans,0,enabled}','true');
  c:=engine_update_configuration('00000000-0000-0000-0000-000000000001',(c->>'version')::int,c);
@@ -97,7 +102,7 @@ BEGIN
  position_id:=(result->>'id')::uuid;
  UPDATE investments SET matures_at=clock_timestamp()-interval '1 second',created_at=clock_timestamp()-interval '2 days' WHERE id=position_id;
  PERFORM engine_process_jobs(); PERFORM engine_process_jobs();
- PERFORM pg_temp.assert((SELECT balance=before_balance+100 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'maturity releases principal once without fabricated projected profits');
+ PERFORM pg_temp.assert((SELECT balance=before_balance FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'maturity releases principal once without fabricated projected profits');
  PERFORM pg_temp.assert((SELECT status='matured' AND credited_profit=0 FROM investments WHERE id=position_id),'accurate matured status and zero unverified credits');
  BEGIN
   PERFORM engine_record_performance('00000000-0000-0000-0000-000000000002','investment',position_id,25,'audit:verified-trades-1','contract:terms-1');
@@ -110,7 +115,7 @@ BEGIN
  PERFORM pg_temp.assert(true,'performance requires authorized administrator and nonempty evidence');
  PERFORM engine_record_performance('00000000-0000-0000-0000-000000000001','investment',position_id,25,'audit:verified-trades-1','contract:terms-1');
  PERFORM engine_process_jobs(); PERFORM engine_process_jobs();
- PERFORM pg_temp.assert((SELECT balance=before_balance+125 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'verified actual profit credited once, distinct from configured percentage');
+ PERFORM pg_temp.assert((SELECT balance=before_balance+25 FROM wallets WHERE user_id='00000000-0000-0000-0000-000000000002' AND asset='USDT'),'verified actual profit credited once, distinct from configured percentage');
  PERFORM pg_temp.assert((SELECT credited_profit=25 FROM investments WHERE id=position_id),'actual credited profit matches verifiable performance record');
  BEGIN
   PERFORM engine_record_performance('00000000-0000-0000-0000-000000000001','investment',position_id,50,'audit:duplicate','contract:terms-1');
@@ -138,8 +143,11 @@ SELECT pg_temp.assert(NOT EXISTS (
 ),'all financial mutation RPCs deny anonymous/authenticated direct execution');
 SELECT pg_temp.assert(NOT has_table_privilege('authenticated','investment_engine_config','UPDATE'),'authenticated users cannot update financial configuration table');
 SELECT pg_temp.assert(NOT has_table_privilege('authenticated','investment_engine_audit','DELETE'),'authenticated users cannot delete audit history');
+SELECT pg_temp.assert(NOT has_column_privilege('authenticated','public.profiles','status','UPDATE'),'authenticated users cannot edit profile status');
+SELECT pg_temp.assert(has_column_privilege('authenticated','public.profiles','display_name','UPDATE'),'authenticated users may still edit their own display name');
 SET ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000002',false);
 DO $$ BEGIN IF EXISTS(SELECT 1 FROM wallets WHERE user_id<>'00000000-0000-0000-0000-000000000002') THEN RAISE EXCEPTION 'cross-user wallet leak'; END IF; END $$;
+SELECT pg_temp.assert(NOT public.is_admin('00000000-0000-0000-0000-000000000001'),'authenticated users cannot probe another account admin status');
 RESET ROLE;
 SELECT pg_temp.assert(true,'Supabase-style authenticated ownership RLS still protects wallet reads');

@@ -7,6 +7,7 @@ import { LogOut, ShieldCheck, Wallet, TrendingUp } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { getAdminAccess } from "@/lib/admin.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -102,8 +103,12 @@ function ProfilePage() {
           </Link>
           <button
             onClick={async () => {
-              await signOut();
-              navigate({ to: "/" });
+              try {
+                await signOut();
+                await navigate({ to: "/" });
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : "Unable to sign out.");
+              }
             }}
             className="panel flex items-center gap-3 p-5 text-left hover:border-bear"
           >

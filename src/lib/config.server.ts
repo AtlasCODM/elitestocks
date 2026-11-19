@@ -7,38 +7,22 @@ export type ServerSupabaseConfiguration = {
   missing: string[];
 };
 
-function readServerEnv(...names: string[]) {
-  for (const name of names) {
-    const value = process.env[name];
-    if (typeof value === "string" && value.trim()) return value.trim();
-  }
-  return undefined;
-}
-
-function readBoolean(...names: string[]) {
-  return readServerEnv(...names)?.toLowerCase() === "true";
+function readBoolean(name: string) {
+  return process.env[name]?.trim().toLowerCase() === "true";
 }
 
 export function getServerSupabaseConfiguration(): ServerSupabaseConfiguration {
-  // Public connection defaults travel with the application, not a hosting provider.
-  // Optional env overrides must form a valid pair; secret keys are never exposed.
-  const resolved = resolvePublicSupabaseConnection(
-    readServerEnv("SUPABASE_URL", "VITE_SUPABASE_URL"),
-    readServerEnv(
-      "SUPABASE_PUBLISHABLE_KEY",
-      "SUPABASE_ANON_KEY",
-      "VITE_SUPABASE_PUBLISHABLE_KEY",
-      "VITE_SUPABASE_ANON_KEY",
-    ),
-  );
+  // The browser-safe connection is versioned with the application; no hosting-provider
+  // environment variables are required for ordinary authentication or public config.
+  const resolved = resolvePublicSupabaseConnection();
   const supabaseUrl = resolved.supabaseUrl ?? undefined;
   const supabasePublishableKey = resolved.supabasePublishableKey ?? undefined;
   return {
     supabaseUrl,
     supabasePublishableKey,
     missing: [
-      ...(!supabaseUrl ? ["SUPABASE_URL"] : []),
-      ...(!supabasePublishableKey ? ["SUPABASE_PUBLISHABLE_KEY"] : []),
+      ...(!supabaseUrl ? ["public Supabase URL in supabase.public.config.json"] : []),
+      ...(!supabasePublishableKey ? ["browser-safe Supabase key in supabase.public.config.json"] : []),
     ],
   };
 }
@@ -48,8 +32,8 @@ export function getPublicRuntimeConfiguration() {
   return {
     supabaseUrl: supabaseUrl ?? null,
     supabasePublishableKey: supabasePublishableKey ?? null,
-    maintenanceMode: readBoolean("MAINTENANCE_MODE", "VITE_MAINTENANCE_MODE"),
-    inAppSupport: readBoolean("IN_APP_SUPPORT", "VITE_FEATURE_IN_APP_SUPPORT"),
+    maintenanceMode: readBoolean("MAINTENANCE_MODE"),
+    inAppSupport: readBoolean("IN_APP_SUPPORT"),
     configured: Boolean(supabaseUrl && supabasePublishableKey),
   } as const;
 }

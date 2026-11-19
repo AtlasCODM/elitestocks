@@ -89,10 +89,7 @@ export function useAuth() {
 }
 
 export async function signOut() {
-  try {
-    const client = await ensureSupabaseClient();
-    await client.auth.signOut({ scope: "local" });
-  } catch {
-    // Signing out is already complete when no local Supabase session can exist.
-  }
+  const client = await ensureSupabaseClient();
+  const { error } = await client.auth.signOut({ scope: "local" });
+  if (error) throw error;
 }

@@ -37,6 +37,10 @@ test("public settings work with zero environment variables when configured once"
   assert.equal(result.configured, true);
   assert.equal(result.supabaseUrl, defaults.supabaseUrl);
   assert.equal(result.supabasePublishableKey, defaults.supabasePublishableKey);
+  const committed = resolvePublicSupabaseConnection();
+  assert.equal(committed.configured, true);
+  assert.equal(committed.supabaseUrl, "https://itpqcpztlxboetngiewm.supabase.co");
+  assert.equal(isBrowserSafeSupabaseKey(committed.supabasePublishableKey), true);
 });
 test("an entirely unconfigured deployment resolves safely without throwing or fake keys", () => {
   assert.deepEqual(resolvePublicSupabaseConnection(undefined, undefined, {}), {

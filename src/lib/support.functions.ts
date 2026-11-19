@@ -73,11 +73,34 @@ export const sendSupportMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => MessageInput.parse(data))
   .handler(async ({ context, data }) => {
+    const attachmentPath = data.attachmentPath ?? null;
+    const extensionByType = {
+      "image/jpeg": "jpeg",
+      "image/png": "png",
+      "image/webp": "webp",
+    } as const;
+    if (Boolean(attachmentPath) !== Boolean(data.attachmentType)) {
+      throw new Error("Attachment path and image type must be provided together");
+    }
+    if (attachmentPath) {
+      const expectedFile = new RegExp(
+        `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.${extensionByType[data.attachmentType!]}$`,
+        "i",
+      );
+      const [ownerId, fileName, ...extraSegments] = attachmentPath.split("/");
+      if (
+        ownerId !== context.userId ||
+        extraSegments.length !== 0 ||
+        !expectedFile.test(fileName ?? "")
+      ) {
+        throw new Error("Support attachments must belong to your own account");
+      }
+    }
     const { data: message, error } = await (supabaseAdmin as any).rpc("support_send_message", {
       p_actor_id: context.userId,
       p_conversation_id: data.conversationId,
       p_content: data.content,
-      p_attachment_url: data.attachmentPath ?? null,
+      p_attachment_url: attachmentPath,
       p_attachment_type: data.attachmentType ?? null,
     });
     if (error) throw new Error(error.message);
