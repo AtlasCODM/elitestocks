@@ -3,10 +3,24 @@
 -- any workspace migration. This file is pure PostgreSQL for the Supabase SQL
 -- Editor: it contains no psql meta-commands and performs no DDL or DML.
 
--- Installed migration history. Supabase projects normally provide this table.
-SELECT version, name
-FROM supabase_migrations.schema_migrations
-ORDER BY version;
+-- Migration-history relation discovery. The supplied target diagnostic reports
+-- that supabase_migrations.schema_migrations is absent, so do not reference it
+-- directly: a missing relation would abort the entire SQL Editor batch.
+SELECT n.nspname AS schema_name,
+       c.relname AS relation_name,
+       c.relkind,
+       CASE
+         WHEN n.nspname = 'supabase_migrations' AND c.relname = 'schema_migrations'
+           THEN 'expected Supabase migration history relation'
+         WHEN c.relname IN ('schema_migrations', 'migrations')
+           THEN 'migration-like relation; verify ownership and semantics'
+         ELSE 'unrelated matching relation'
+       END AS interpretation
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relname IN ('schema_migrations', 'migrations')
+   OR (n.nspname = 'supabase_migrations' AND c.relname = 'schema_migrations')
+ORDER BY n.nspname, c.relname;
 
 -- Relevant relations and estimated live row counts. Missing relations simply do
 -- not appear; this query does not assume that a table exists.

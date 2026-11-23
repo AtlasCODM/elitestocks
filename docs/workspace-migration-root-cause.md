@@ -6,17 +6,15 @@
 
 ## Executive conclusion
 
-A production-safe final Phase 1 migration cannot be produced from this checkout alone. The repository is a single-workspace application and contains no workspace migration, workspace-aware RPCs, workspace context in the server middleware, or live-schema export. The supplied diagnostic output verifies three current administrator assignments, but does not include the complete catalog, migration history, policies, triggers, grants, or row-level results needed to author a safe workspace migration.
+A production-safe final Phase 1 migration cannot be produced from this checkout alone. The repository is a single-workspace application and contains no workspace migration, workspace-aware RPCs, workspace context in the server middleware, or live-schema export. The supplied live diagnostic now verifies the current catalog sections, but it still does not provide an isolated execution environment or a complete installed migration history.
 
 Creating a guessed migration would violate the task requirements and could expose financial records across workspaces. The safe change made in this commit is therefore a read-only live preflight audit, not an untested migration pretending to be complete.
 
-The supplied administrator records are:
+The earlier administrator list has since been superseded by the complete diagnostic: only Testing currently has the `admin` role. The earlier Meback and WebTest assignments are already absent. The current administrator record is:
 
-- `41f53e7d-c2ef-4510-a672-1417e5aeb1a4` (`meback@gmail.com`, Meback)
 - `5031f488-3ed2-4acd-86b7-931ac6404728` (`theytest@gmail.com`, Testing)
-- `8741995f-5ef5-4674-8143-eeff5ab99305` (`webtest@gmail.com`, WebTest)
 
-The requested cleanup is separate from workspace migration. The copyable script `supabase/diagnostics/remove-retired-admin-roles.sql` removes only the `admin` role rows for Meback and WebTest, verifies that Testing retains that role, and does not delete accounts or application data. It does not introduce a super-admin role or hierarchy.
+The copyable script `supabase/diagnostics/remove-retired-admin-roles.sql` remains safe to run as a verification/idempotent cleanup: it removes only the `admin` role rows for Meback and WebTest if present, accepts the already-clean state, verifies that Testing retains that role, and does not delete accounts or application data. It does not introduce a super-admin role or hierarchy.
 
 ## Verified current state
 
@@ -28,6 +26,14 @@ The checked-in migrations show:
 - `support_conversations` and `support_messages` are globally scoped by user/conversation and authorize every administrator globally.
 - `is_admin()` ultimately checks `public.user_roles.role = 'admin'`, with no workspace dimension.
 - The application uses `supabaseAdmin`, which bypasses RLS, and passes only user/actor/record IDs to the engine, admin, and support RPCs.
+
+## Verified live diagnostic findings
+
+The supplied export reports no `supabase_migrations.schema_migrations` relation. It found similarly named relations only under `auth`, `realtime`, and `storage`; those are not evidence of the application migration history. The preflight query was changed to discover migration-like relations from the catalog without referencing a missing table.
+
+The target currently reports these relevant estimated row counts: 2 profiles, 8 wallets, 3 transactions, 2 investment-engine audit rows, 0 investment-engine performance rows, 0 investments, 0 copy trades, 0 support conversations, 0 support messages, 0 traders, 0 platform settings rows, 1 engine configuration row, and 0 user-role rows according to the catalog estimate. The estimate for `user_roles` conflicts with the returned administrator row and should be treated as stale statistics, not proof that the row is absent.
+
+The live definitions confirm that `user_roles` has UUID `id` primary key, `user_id` foreign key, `app_role` role, and unique `(user_id, role)`. The engine audit/performance tables retain unconditional immutability triggers; audit has 2 rows with non-null actors, performance has 0 rows. The singleton `platform_settings` and `investment_engine_config` constraints remain present. RLS is enabled on the relevant public tables, but existing policies are global/user-based and the SECURITY DEFINER RPCs remain workspace-blind.
 
 ## Actual immutable-history failure
 
@@ -42,9 +48,9 @@ The correct choice depends on the actual live table definitions and existing row
 
 ## Additional blockers discovered
 
-1. There is no checked-in source migration for `public.user_roles`; the fixture is explicitly test-only. Its live type, constraints, grants, policies, and rows beyond the supplied administrator result are unknown.
+1. There is no checked-in source migration for `public.user_roles`; the supplied live export now verifies its current columns and constraints, but not its full creation history.
 2. The supplied diagnostic states that no super-admin exists. This work does not introduce a super-admin role or hierarchy.
-3. The installed migration history is unknown. The checked-in files may not match the deployed project, and a failed transaction may or may not have rolled back completely.
+3. The application migration history is unknown because `supabase_migrations.schema_migrations` is absent in the supplied target. The checked-in files may not match the deployed project, and a failed transaction may or may not have rolled back completely.
 4. Existing live audit/performance rows and duplicate/invalid workspace mappings are unknown.
 5. All listed RPCs are workspace-blind. RLS changes alone would not protect calls executed through the service-role client or `SECURITY DEFINER` functions.
 6. The processor scans all investments and copy trades globally, and settings/config lock and synchronization triggers assume one singleton.
@@ -76,8 +82,8 @@ If the administrator cleanup is authorized, run `supabase/diagnostics/remove-ret
 |---|---|
 | Repository static audit | Completed |
 | Root cause of immutable-history error | Confirmed from checked-in SQL |
-| Administrator diagnostic review | Completed for the three supplied UUIDs and requested cleanup scope |
-| Live Supabase catalog/policy/RPC audit | Not performed: complete diagnostic output was not supplied |
+| Administrator diagnostic review | Completed; only Testing currently has `admin` |
+| Live Supabase catalog/policy/RPC audit | Completed from the supplied export; no direct connection from this sandbox |
 | Isolated execution of a Phase 1 migration | Not performed: no Phase 1 migration exists in the checkout |
 | Cross-workspace integration tests | Not performed |
 | Production migration | Not performed |

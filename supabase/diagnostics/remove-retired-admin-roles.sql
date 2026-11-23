@@ -50,8 +50,11 @@ BEGIN
     );
   GET DIAGNOSTICS v_removed = ROW_COUNT;
 
-  IF v_removed <> 2 THEN
-    RAISE EXCEPTION 'Expected to remove exactly 2 admin assignments, removed %', v_removed;
+  -- The supplied live diagnostic already shows both retired assignments absent.
+  -- Accept the already-clean state (0) or the expected untouched state (2), but
+  -- reject a partial result because it needs manual investigation.
+  IF v_removed NOT IN (0, 2) THEN
+    RAISE EXCEPTION 'Expected to remove both assignments or find both already absent, removed %', v_removed;
   END IF;
 
   SELECT EXISTS (
