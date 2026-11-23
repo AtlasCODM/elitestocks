@@ -62,6 +62,14 @@ The repository already corrected several unrelated or earlier issues: user-role 
 
 The multi-workspace requirements remain unresolved: workspace tables and memberships, legacy mapping, workspace-keyed settings/configuration, workspace-aware RPC contracts and authorization, workspace-scoped RLS, application workspace resolution, and cross-workspace tests.
 
+## Requested four-part migration audit limitation
+
+The latest instruction refers to original SQL migration Parts 1, 2, 3, and 4. Those four source files are not present in the checkout or in the supplied attachments. The checkout contains eleven timestamped migrations under `supabase/migrations/`, including the base schema, admin/support migrations, investment engine, and security hardening, but no files labelled or structurally identified as Parts 1–4.
+
+Consequently, it is not possible to produce four corrected complete versions without inventing source SQL and potentially changing business logic. The existing checked-in migrations have been audited directly; the missing four originals must be supplied before a part-by-part correction can be claimed.
+
+The repository now includes `supabase/diagnostics/workspace-post-migration-verification.sql`, a read-only Supabase SQL Editor script that returns one consolidated `section`/`result` JSON result set covering relations, columns, constraints, indexes, functions, triggers, RLS policies, privileges, engine/data preservation checks, administrators, and migration-like relations.
+
 ## Required live preflight
 
 Run `supabase/diagnostics/workspace-migration-preflight.sql` against the actual project and save its output. It contains only PostgreSQL statements accepted by the Supabase SQL Editor, no psql backslash commands, and intentionally performs no DDL or DML. Before any migration is authored, the output must establish:
@@ -87,6 +95,8 @@ If the administrator cleanup is authorized, run `supabase/diagnostics/remove-ret
 | Isolated execution of a Phase 1 migration | Not performed: no Phase 1 migration exists in the checkout |
 | Cross-workspace integration tests | Not performed |
 | Production migration | Not performed |
+| Original SQL Parts 1–4 audit | Blocked: source files were not supplied |
+| Consolidated post-migration verification SQL | Added and statically reviewed; not executed against the target |
 
 ## Application compatibility impact
 
