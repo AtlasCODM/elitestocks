@@ -6,9 +6,17 @@
 
 ## Executive conclusion
 
-A production-safe final Phase 1 migration cannot be produced from this checkout alone. The repository is a single-workspace application and contains no workspace migration, workspace-aware RPCs, workspace context in the server middleware, or live-schema export. The connected Supabase project was not accessible from this sandbox, so the actual installed schema, migration history, policies, triggers, grants, rows, and confirmed super-administrator identity could not be verified.
+A production-safe final Phase 1 migration cannot be produced from this checkout alone. The repository is a single-workspace application and contains no workspace migration, workspace-aware RPCs, workspace context in the server middleware, or live-schema export. The supplied diagnostic output verifies three current administrator assignments, but does not include the complete catalog, migration history, policies, triggers, grants, or row-level results needed to author a safe workspace migration.
 
 Creating a guessed migration would violate the task requirements and could expose financial records across workspaces. The safe change made in this commit is therefore a read-only live preflight audit, not an untested migration pretending to be complete.
+
+The supplied administrator records are:
+
+- `41f53e7d-c2ef-4510-a672-1417e5aeb1a4` (`meback@gmail.com`, Meback)
+- `5031f488-3ed2-4acd-86b7-931ac6404728` (`theytest@gmail.com`, Testing)
+- `8741995f-5ef5-4674-8143-eeff5ab99305` (`webtest@gmail.com`, WebTest)
+
+The requested cleanup is separate from workspace migration. The copyable script `supabase/diagnostics/remove-retired-admin-roles.sql` removes only the `admin` role rows for Meback and WebTest, verifies that Testing retains that role, and does not delete accounts or application data. It does not introduce a super-admin role or hierarchy.
 
 ## Verified current state
 
@@ -34,8 +42,8 @@ The correct choice depends on the actual live table definitions and existing row
 
 ## Additional blockers discovered
 
-1. There is no checked-in source migration for `public.user_roles`; the fixture is explicitly test-only. Its live type, constraints, grants, policies, and rows are unknown.
-2. The confirmed super administrator is not identifiable from repository contents. Inferring it from the first or lowest UUID would be unsafe.
+1. There is no checked-in source migration for `public.user_roles`; the fixture is explicitly test-only. Its live type, constraints, grants, policies, and rows beyond the supplied administrator result are unknown.
+2. The supplied diagnostic states that no super-admin exists. This work does not introduce a super-admin role or hierarchy.
 3. The installed migration history is unknown. The checked-in files may not match the deployed project, and a failed transaction may or may not have rolled back completely.
 4. Existing live audit/performance rows and duplicate/invalid workspace mappings are unknown.
 5. All listed RPCs are workspace-blind. RLS changes alone would not protect calls executed through the service-role client or `SECURITY DEFINER` functions.
@@ -50,7 +58,7 @@ The multi-workspace requirements remain unresolved: workspace tables and members
 
 ## Required live preflight
 
-Run `supabase/diagnostics/workspace-migration-preflight.sql` against a read-only connection to the actual project and save its output. It intentionally does not modify data. Before any migration is authored, the output must establish:
+Run `supabase/diagnostics/workspace-migration-preflight.sql` against the actual project and save its output. It contains only PostgreSQL statements accepted by the Supabase SQL Editor, no psql backslash commands, and intentionally performs no DDL or DML. Before any migration is authored, the output must establish:
 
 - installed migration history;
 - exact definitions of all tenant tables, functions, triggers, constraints, indexes, policies, grants, and relevant storage objects;
@@ -60,13 +68,16 @@ Run `supabase/diagnostics/workspace-migration-preflight.sql` against a read-only
 
 A backup and isolated/staging execution environment are also required. Until those prerequisites are available, the repository must not claim that a corrected migration has passed execution or integration validation.
 
+If the administrator cleanup is authorized, run `supabase/diagnostics/remove-retired-admin-roles.sql` separately after reviewing the live `user_roles` constraints and grants. Do not combine it with a workspace migration.
+
 ## Validation status
 
 | Check | Result |
 |---|---|
 | Repository static audit | Completed |
 | Root cause of immutable-history error | Confirmed from checked-in SQL |
-| Live Supabase catalog/policy/RPC audit | Not performed: no live connector/credentials available |
+| Administrator diagnostic review | Completed for the three supplied UUIDs and requested cleanup scope |
+| Live Supabase catalog/policy/RPC audit | Not performed: complete diagnostic output was not supplied |
 | Isolated execution of a Phase 1 migration | Not performed: no Phase 1 migration exists in the checkout |
 | Cross-workspace integration tests | Not performed |
 | Production migration | Not performed |
