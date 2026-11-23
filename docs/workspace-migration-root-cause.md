@@ -29,7 +29,7 @@ The checked-in migrations show:
 
 ## Verified live diagnostic findings
 
-The supplied export reports no `supabase_migrations.schema_migrations` relation. It found similarly named relations only under `auth`, `realtime`, and `storage`; those are not evidence of the application migration history. The preflight query was changed to discover migration-like relations from the catalog without referencing a missing table.
+The supplied export was collected as `postgres` on PostgreSQL 17.6. It reports no `supabase_migrations.schema_migrations` relation and explicitly confirms that both `public.workspaces` and `public.workspace_members` are absent. It found similarly named relations only under `auth`, `realtime`, and `storage`; those are not evidence of the application migration history. The preflight query was changed to discover migration-like relations from the catalog without referencing a missing table.
 
 The target currently reports these relevant estimated row counts: 2 profiles, 8 wallets, 3 transactions, 2 investment-engine audit rows, 0 investment-engine performance rows, 0 investments, 0 copy trades, 0 support conversations, 0 support messages, 0 traders, 0 platform settings rows, 1 engine configuration row, and 0 user-role rows according to the catalog estimate. The estimate for `user_roles` conflicts with the returned administrator row and should be treated as stale statistics, not proof that the row is absent.
 
