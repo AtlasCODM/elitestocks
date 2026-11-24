@@ -27,12 +27,13 @@ async function withSignedAttachments(messages: any[]) {
   );
 }
 
-async function conversationPayload(conversation: any) {
+async function conversationPayload(conversation: any, workspaceId: string) {
   if (!conversation) return { conversation: null, messages: [] };
   const { data: messages, error } = await (supabaseAdmin as any)
     .from("support_messages")
     .select("*")
     .eq("conversation_id", conversation.id)
+    .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: true })
     .order("id", { ascending: true });
   if (error) throw new Error(error.message);
@@ -45,12 +46,13 @@ export const getSupportState = createServerFn({ method: "GET" })
     const { data: conversation, error } = await (supabaseAdmin as any)
       .from("support_conversations")
       .select("*")
+      .eq("workspace_id", context.workspaceId)
       .eq("user_id", context.userId)
       .order("updated_at", { ascending: false })
       .limit(1)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    return conversationPayload(conversation);
+    return conversationPayload(conversation, context.workspaceId);
   });
 
 export const startSupportConversation = createServerFn({ method: "POST" })
@@ -60,7 +62,7 @@ export const startSupportConversation = createServerFn({ method: "POST" })
       p_actor_id: context.userId,
     });
     if (error) throw new Error(error.message);
-    return conversationPayload(data);
+    return conversationPayload(data, context.workspaceId);
   });
 
 const MessageInput = z.object({
@@ -128,12 +130,13 @@ export const getSupportConversation = createServerFn({ method: "POST" })
     const { data: conversation, error } = await (supabaseAdmin as any)
       .from("support_conversations")
       .select("*")
+      .eq("workspace_id", context.workspaceId)
       .eq("id", data.conversationId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!conversation) throw new Error("Conversation not found");
     if (conversation.user_id !== context.userId) await requireAdmin(context.userId);
-    return conversationPayload(conversation);
+    return conversationPayload(conversation, context.workspaceId);
   });
 
 export const getSupportInbox = createServerFn({ method: "GET" })
@@ -143,6 +146,7 @@ export const getSupportInbox = createServerFn({ method: "GET" })
     const { data: conversations, error } = await (supabaseAdmin as any)
       .from("support_conversations")
       .select("*")
+      .eq("workspace_id", context.workspaceId)
       .order("status", { ascending: true })
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -157,6 +161,7 @@ export const getSupportInbox = createServerFn({ method: "GET" })
       ? await (supabaseAdmin as any)
           .from("support_messages")
           .select("*")
+          .eq("workspace_id", context.workspaceId)
           .in(
             "conversation_id",
             conversations.map((item: any) => item.id),

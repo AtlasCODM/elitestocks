@@ -25,7 +25,8 @@ const legacyWalletColumn = {
   USDT: "addr_trc20",
 } as const;
 
-async function configuredDepositAddress(asset: Asset) {
+async function configuredDepositAddress(asset: Asset, workspaceId: string) {
+  void workspaceId;
   const { data: settings, error } = await (supabaseAdmin as any)
     .from("platform_settings")
     .select("*")
@@ -40,7 +41,11 @@ async function configuredDepositAddress(asset: Asset) {
 export const getDepositAddress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { asset: Asset }) => z.object({ asset: AssetSchema }).parse(d))
-  .handler(async ({ data }) => ({ address: await configuredDepositAddress(data.asset) }));
+  .handler(async ({ data, context }) => ({
+    // The singleton is retained until the workspace-keyed configuration migration.
+    // The workspace is still resolved and validated by requireSupabaseAuth.
+    address: await configuredDepositAddress(data.asset, context.workspaceId),
+  }));
 
 export const confirmDeposit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -8,15 +8,18 @@ export const listInvestments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const serverNow = new Date().toISOString();
+    const admin = supabaseAdmin as any;
     const [inv, copies] = await Promise.all([
-      supabaseAdmin
+      admin
         .from("investments")
         .select("*")
+        .eq("workspace_id", context.workspaceId)
         .eq("user_id", context.userId)
         .order("created_at", { ascending: false }),
-      supabaseAdmin
+      admin
         .from("copy_trades")
         .select("*, trader:traders(name,handle,badge)")
+        .eq("workspace_id", context.workspaceId)
         .eq("user_id", context.userId)
         .order("created_at", { ascending: false }),
     ]);
@@ -24,11 +27,11 @@ export const listInvestments = createServerFn({ method: "GET" })
     if (copies.error) throw new Error(copies.error.message);
     return {
       serverNow,
-      investments: (inv.data ?? []).map((row) => ({
+      investments: (inv.data ?? []).map((row: any) => ({
         ...row,
         summary: summarizePosition(row, serverNow),
       })),
-      copyTrades: (copies.data ?? []).map((row) => ({
+      copyTrades: (copies.data ?? []).map((row: any) => ({
         ...row,
         summary: summarizePosition(row, serverNow),
       })),
