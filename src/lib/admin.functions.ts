@@ -2,12 +2,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getSupabaseAdmin } from "@/integrations/supabase/admin-access";
 
 async function isAdminUser(authClient: any, userId: string) {
-  // The bearer token is verified by requireSupabaseAuth. The role is read from
-  // the database, never from browser state, JWT metadata, or a user-supplied ID.
-  const { data, error } = await authClient
+  // The bearer token is verified by requireSupabaseAuth. Use the trusted
+  // service-role client for the role lookup because user_roles is intentionally
+  // protected by RLS and must not be treated as a browser-readable table.
+  // `userId` always comes from the verified request context, never the browser.
+  void authClient;
+  const admin = (await getSupabaseAdmin()) as any;
+  const { data, error } = await admin
     .from("user_roles")
     .select("role")
     .eq("user_id", userId)
@@ -26,27 +30,29 @@ export async function requireAdmin(authClient: any, userId: string) {
 export const getAdminAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => ({
-    isAdmin: await isAdminUser(context.supabase, context.userId),
+    isAdmin: await isAdminUser(null, context.userId),
   }));
 
 export const getAdminState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context.supabase, context.userId);
+    const admin = (await getSupabaseAdmin()) as any;
     const [{ data: transactions, error: txError }, { data: settings, error: settingsError }] =
       await Promise.all([
-        (supabaseAdmin as any)
+        admin
           .from("transactions")
           .select("*")
+          .eq("workspace_id", context.workspaceId)
           .order("created_at", { ascending: false })
           .limit(250),
-        (supabaseAdmin as any).from("platform_settings").select("*").eq("id", true).single(),
+        admin.from("platform_settings").select("*").eq("id", true).single(),
       ]);
     if (txError) throw new Error(txError.message);
     if (settingsError) throw new Error(settingsError.message);
     const userIds = [...new Set((transactions ?? []).map((tx: any) => tx.user_id))];
     const { data: profiles } = userIds.length
-      ? await (supabaseAdmin as any)
+      ? await admin
           .from("profiles")
           .select("id,email,display_name,status")
           .in("id", userIds)
@@ -64,7 +70,8 @@ export const updateAdminTransaction = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => UpdateTransactionInput.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context.supabase, context.userId);
-    const { data: transaction, error } = await (supabaseAdmin as any).rpc(
+    const admin = (await getSupabaseAdmin()) as any;
+    const { data: transaction, error } = await admin.rpc(
       "admin_update_transaction",
       {
         p_transaction_id: data.transactionId,
@@ -121,7 +128,8 @@ export const updateAdminSettings = createServerFn({ method: "POST" })
     if (data.maxWithdrawal <= data.minWithdrawal) {
       throw new Error("Maximum must exceed minimum");
     }
-    const { data: settings, error } = await (supabaseAdmin as any).rpc("admin_update_settings", {
+    const admin = (await getSupabaseAdmin()) as any;
+    const { data: settings, error } = await admin.rpc("admin_update_settings", {
       p_bitcoin_wallet_address: data.bitcoinWalletAddress,
       p_ethereum_wallet_address: data.ethereumWalletAddress,
       p_solana_wallet_address: data.solanaWalletAddress,
@@ -138,9 +146,10 @@ export const listAdminUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context.supabase, context.userId);
+    const admin = await getSupabaseAdmin();
     const users: any[] = [];
     for (let page = 1; page <= 100; page += 1) {
-      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) throw new Error(error.message);
       users.push(...data.users);
       if (data.users.length < 1000) break;
@@ -155,7 +164,8 @@ export const deleteAdminUser = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await requireAdmin(context.supabase, context.userId);
     if (data.userId === context.userId) throw new Error("You cannot delete your own account");
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
+    const admin = await getSupabaseAdmin();
+    const { error } = await admin.auth.admin.deleteUser(data.userId);
     if (error) throw new Error(error.message);
     return { deletedUserId: data.userId };
   });

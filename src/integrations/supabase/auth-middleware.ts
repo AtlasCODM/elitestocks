@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Supabase generated types predate workspace authorization tables. */
 import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
@@ -11,13 +12,15 @@ function requestedWorkspaceId(request: Request) {
   if (header) return header;
 
   const cookie = request.headers.get("cookie") ?? "";
-  const match = cookie.match(/(?:^|;\\s*)elitestocks_workspace_id=([^;]+)/);
+  const match = cookie.match(/(?:^|;\s*)elitestocks_workspace_id=([^;]+)/);
   return match ? decodeURIComponent(match[1]) : PRIMARY_WORKSPACE_ID;
 }
 
 async function resolveWorkspace(userId: string, request: Request) {
   const workspaceId = requestedWorkspaceId(request);
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(workspaceId)) {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(workspaceId)
+  ) {
     throw new Error("Invalid workspace context");
   }
 
@@ -25,7 +28,12 @@ async function resolveWorkspace(userId: string, request: Request) {
   const [{ data: workspace, error: workspaceError }, { data: role, error: roleError }] =
     await Promise.all([
       admin.from("workspaces").select("id,is_active").eq("id", workspaceId).maybeSingle(),
-      admin.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+      admin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("role", "admin")
+        .maybeSingle(),
     ]);
   if (workspaceError) throw new Error(`Unable to resolve workspace: ${workspaceError.message}`);
   if (roleError) throw new Error(`Unable to resolve administrator role: ${roleError.message}`);

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- workspace columns are additive to generated legacy types. */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -10,7 +11,11 @@ export const getWalletState = createServerFn({ method: "GET" })
     const userId = context.userId;
     const admin = supabaseAdmin as any;
     const [wallets, txs, investments, copies] = await Promise.all([
-      admin.from("wallets").select("*").eq("workspace_id", context.workspaceId).eq("user_id", userId),
+      admin
+        .from("wallets")
+        .select("*")
+        .eq("workspace_id", context.workspaceId)
+        .eq("user_id", userId),
       admin
         .from("transactions")
         .select("*")
