@@ -156,7 +156,14 @@ function_checks AS (
     SELECT p.oid::regprocedure::text AS signature,
            p.prosecdef AS security_definer,
            p.proconfig AS configuration,
-           has_function_privilege('PUBLIC', p.oid, 'EXECUTE') AS public_execute,
+           EXISTS (
+             SELECT 1
+             FROM aclexplode(
+               coalesce(p.proacl, acldefault('f', p.proowner))
+             ) AS public_acl
+             WHERE public_acl.grantee = 0
+               AND public_acl.privilege_type = 'EXECUTE'
+           ) AS public_execute,
            has_function_privilege('anon', p.oid, 'EXECUTE') AS anon_execute,
            has_function_privilege('authenticated', p.oid, 'EXECUTE') AS authenticated_execute,
            has_function_privilege('service_role', p.oid, 'EXECUTE') AS service_role_execute
@@ -200,17 +207,48 @@ privilege_checks AS (
   FROM (
     SELECT 'function'::text AS object_kind,
            p.oid::regprocedure::text AS object_name,
-           r.rolname AS grantee,
-           has_function_privilege(r.rolname, p.oid, 'EXECUTE') AS has_execute
+           CASE WHEN acl.grantee = 0 THEN 'PUBLIC'::text ELSE r.rolname::text END AS grantee,
+           acl.privilege_type,
+           acl.is_grantable,
+           (acl.privilege_type = 'EXECUTE') AS has_execute
     FROM pg_proc AS p
-    CROSS JOIN (VALUES ('public'::name), ('anon'::name), ('authenticated'::name), ('service_role'::name)) AS roles(role_name)
-    JOIN pg_roles AS r ON r.rolname = roles.role_name
+    CROSS JOIN LATERAL aclexplode(
+      coalesce(p.proacl, acldefault('f', p.proowner))
+    ) AS acl
+    LEFT JOIN pg_roles AS r ON r.oid = acl.grantee
     WHERE p.oid IN (
       'public.current_workspace_id()'::regprocedure,
       'public.workspace_has_access(uuid,uuid)'::regprocedure,
       'public.set_workspace_context(uuid)'::regprocedure,
       'public.handle_new_user()'::regprocedure
     )
+    UNION ALL
+    SELECT 'table'::text AS object_kind,
+           g.table_schema || '.' || g.table_name AS object_name,
+           g.grantee::text AS grantee,
+           g.privilege_type,
+           g.is_grantable,
+           NULL::boolean AS has_execute
+    FROM information_schema.role_table_grants AS g
+    WHERE g.table_schema = 'public'
+      AND g.table_name IN (
+        'workspaces',
+        'workspace_members',
+        'wallets',
+        'transactions',
+        'investments',
+        'copy_trades',
+        'traders',
+        'support_conversations',
+        'support_messages',
+        'deposit_requests',
+        'maintenance_requests',
+        'mining_rewards',
+        'spot_orders',
+        'user_miners',
+        'withdrawal_requests',
+        'platform_settings'
+      )
   ) AS x
 ),
 administrator_checks AS (

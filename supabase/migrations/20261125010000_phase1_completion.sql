@@ -199,7 +199,18 @@ DECLARE
   v_public_execute boolean;
   v_anon_execute boolean;
 BEGIN
-  SELECT has_function_privilege('PUBLIC', 'public.handle_new_user()', 'EXECUTE')
+  SELECT EXISTS (
+    SELECT 1
+    FROM pg_proc AS p
+    JOIN pg_namespace AS n ON n.oid = p.pronamespace
+    CROSS JOIN LATERAL aclexplode(
+      coalesce(p.proacl, acldefault('f', p.proowner))
+    ) AS acl
+    WHERE n.nspname = 'public'
+      AND p.oid = 'public.handle_new_user()'::regprocedure
+      AND acl.grantee = 0
+      AND acl.privilege_type = 'EXECUTE'
+  )
     INTO v_public_execute;
   SELECT has_function_privilege('anon', 'public.handle_new_user()', 'EXECUTE')
     INTO v_anon_execute;
