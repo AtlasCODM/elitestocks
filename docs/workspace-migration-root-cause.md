@@ -70,6 +70,14 @@ Consequently, it is not possible to produce four corrected complete versions wit
 
 The repository now includes `supabase/diagnostics/workspace-post-migration-verification.sql`, a read-only Supabase SQL Editor script that returns one consolidated `section`/`result` JSON result set covering relations, columns, constraints, indexes, functions, triggers, RLS policies, privileges, engine/data preservation checks, administrators, and migration-like relations.
 
+## Prepared Phase 1 workspace foundation
+
+Based on the supplied verification export, the prepared migration is `supabase/migrations/20261123230000_phase1_workspace_foundation.sql`. It creates a deterministic primary workspace and membership table, maps every existing profile into that workspace, adds non-null workspace ownership to wallets, transactions, investments, copy trades, traders, support records, and investment-engine history, adds foreign keys and indexes, and replaces the known user/support read policies with workspace-aware policies.
+
+The migration does not update immutable engine-history rows: their `workspace_id` is populated by `ALTER TABLE ... ADD COLUMN ... NOT NULL DEFAULT ...`, while the existing unconditional UPDATE/DELETE immutability triggers remain installed. It does not touch `user_roles`, Auth accounts, balances, financial records, settings values, engine configuration, or administrator assignments. It contains no table reset, truncate, delete, trigger disabling, or table recreation.
+
+This is the database foundation and compatibility phase, not the final second-workspace enablement. Existing service-role and SECURITY DEFINER RPCs in the repository still accept user/record IDs without a workspace parameter and therefore default legacy writes to the primary workspace. Before onboarding a second workspace, those RPCs, the application workspace context, server-side service-role filters, settings/configuration model, processor loops, and support storage authorization must be upgraded and integration-tested. Applying this SQL alone must not be represented as complete multi-workspace application isolation.
+
 ## Required live preflight
 
 Run `supabase/diagnostics/workspace-migration-preflight.sql` against the actual project and save its output. It contains only PostgreSQL statements accepted by the Supabase SQL Editor, no psql backslash commands, and intentionally performs no DDL or DML. Before any migration is authored, the output must establish:
@@ -92,11 +100,11 @@ If the administrator cleanup is authorized, run `supabase/diagnostics/remove-ret
 | Root cause of immutable-history error | Confirmed from checked-in SQL |
 | Administrator diagnostic review | Completed; only Testing currently has `admin` |
 | Live Supabase catalog/policy/RPC audit | Completed from the supplied export; no direct connection from this sandbox |
-| Isolated execution of a Phase 1 migration | Not performed: no Phase 1 migration exists in the checkout |
+| Isolated execution of the prepared Phase 1 migration | Not performed: SQL is prepared but not run against Supabase |
 | Cross-workspace integration tests | Not performed |
 | Production migration | Not performed |
 | Original SQL Parts 1–4 audit | Blocked: source files were not supplied |
-| Consolidated post-migration verification SQL | Added and statically reviewed; not executed against the target |
+| Consolidated post-migration verification SQL | Extended for workspace checks; statically reviewed; not executed against the target |
 
 ## Application compatibility impact
 

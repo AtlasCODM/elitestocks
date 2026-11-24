@@ -94,7 +94,8 @@ function_checks AS (
         'engine_cancel_position','engine_record_performance','engine_process_jobs',
         'admin_update_transaction','admin_update_settings',
         'support_get_or_create_conversation','support_send_message',
-        'support_mark_read','support_resolve_conversation','handle_new_user'
+        'support_mark_read','support_resolve_conversation','handle_new_user',
+        'current_workspace_id','workspace_has_access','set_workspace_context'
       )
   ) x
 ),
@@ -149,7 +150,8 @@ privilege_checks AS (
         'engine_cancel_position','engine_record_performance','engine_process_jobs',
         'admin_update_transaction','admin_update_settings',
         'support_get_or_create_conversation','support_send_message',
-        'support_mark_read','support_resolve_conversation'
+        'support_mark_read','support_resolve_conversation',
+        'current_workspace_id','workspace_has_access','set_workspace_context'
       )
   ) x
 ),
@@ -165,7 +167,17 @@ engine_checks AS (
     'copy_trade_rows', (SELECT count(*) FROM public.copy_trades),
     'transaction_rows', (SELECT count(*) FROM public.transactions),
     'wallet_rows', (SELECT count(*) FROM public.wallets),
-    'profile_rows', (SELECT count(*) FROM public.profiles)
+    'profile_rows', (SELECT count(*) FROM public.profiles),
+    'workspace_rows', (SELECT count(*) FROM public.workspaces),
+    'workspace_member_rows', (SELECT count(*) FROM public.workspace_members),
+    'workspace_memberless_profiles', (SELECT count(*) FROM public.profiles p
+      WHERE NOT EXISTS (SELECT 1 FROM public.workspace_members m WHERE m.user_id = p.id)),
+    'workspace_null_wallets', (SELECT count(*) FROM public.wallets WHERE workspace_id IS NULL),
+    'workspace_null_transactions', (SELECT count(*) FROM public.transactions WHERE workspace_id IS NULL),
+    'workspace_null_investments', (SELECT count(*) FROM public.investments WHERE workspace_id IS NULL),
+    'workspace_null_copy_trades', (SELECT count(*) FROM public.copy_trades WHERE workspace_id IS NULL),
+    'workspace_null_audit', (SELECT count(*) FROM public.investment_engine_audit WHERE workspace_id IS NULL),
+    'workspace_null_performance', (SELECT count(*) FROM public.investment_engine_performance WHERE workspace_id IS NULL)
   ) AS result
 ),
 admin_checks AS (
