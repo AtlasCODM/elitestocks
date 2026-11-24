@@ -78,6 +78,17 @@ The migration does not update immutable engine-history rows: their `workspace_id
 
 This is the database foundation and compatibility phase, not the final second-workspace enablement. Existing service-role and SECURITY DEFINER RPCs in the repository still accept user/record IDs without a workspace parameter and therefore default legacy writes to the primary workspace. Before onboarding a second workspace, those RPCs, the application workspace context, server-side service-role filters, settings/configuration model, processor loops, and support storage authorization must be upgraded and integration-tested. Applying this SQL alone must not be represented as complete multi-workspace application isolation.
 
+## Review of supplied post-migration verification
+
+The supplied post-migration export confirms the core Phase 1 invariants: one workspace, six workspace members for six profiles, zero memberless profiles, zero NULL workspace ownership values across the migrated tables, preserved counts of 24 wallets, four transactions, two engine-audit rows, zero investments, zero copy trades, zero performance rows, and zero audit null actors. The workspace foreign keys, RLS policies, and unconditional immutable audit/performance triggers are present. The administrator assignment remains unchanged with only Testing holding `admin`.
+
+Two follow-up findings are material:
+
+1. PostgreSQL retained default `PUBLIC`/`anon` EXECUTE privileges on the three newly created workspace helper functions. The narrow repair is `supabase/migrations/20261124031000_phase1_workspace_function_privileges.sql`; run it after the foundation migration. It changes privileges only and does not modify data.
+2. The live RLS export contains additional public application tables not represented in the checked-in schema/migration set, including `deposit_requests`, `maintenance_requests`, `mining_hardware`, `mining_rewards`, `spot_orders`, `user_miners`, and `withdrawal_requests`. They were not altered because their complete live definitions and ownership semantics were not supplied. The verification query now reports `workspace_candidate_relations_without_workspace_id` so these and any other user-owned tables can be inventoried before calling the live schema fully workspace-complete.
+
+The Phase 1 foundation therefore passed its listed core checks but the supplied export does not prove full workspace coverage of the deployed application schema. Do not open a second workspace until the additional tables are classified and, where tenant-owned, migrated with their exact constraints, RPCs, indexes, and policies.
+
 ## Required live preflight
 
 Run `supabase/diagnostics/workspace-migration-preflight.sql` against the actual project and save its output. It contains only PostgreSQL statements accepted by the Supabase SQL Editor, no psql backslash commands, and intentionally performs no DDL or DML. Before any migration is authored, the output must establish:

@@ -204,6 +204,21 @@ migration_relation_checks AS (
     JOIN pg_namespace n ON n.oid = c.relnamespace
     WHERE c.relname IN ('schema_migrations','migrations')
   ) x
+),
+workspace_candidate_checks AS (
+  SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.table_name), '[]'::jsonb) AS result
+  FROM (
+    SELECT c.table_name,
+           bool_or(c.column_name = 'user_id') AS has_user_id,
+           bool_or(c.column_name = 'workspace_id') AS has_workspace_id,
+           bool_or(c.column_name IN ('owner_id', 'account_id', 'tenant_id')) AS has_other_owner_key
+    FROM information_schema.columns c
+    WHERE c.table_schema = 'public'
+      AND c.table_name NOT IN ('user_roles')
+    GROUP BY c.table_name
+    HAVING bool_or(c.column_name = 'user_id')
+       AND NOT bool_or(c.column_name = 'workspace_id')
+  ) x
 )
 SELECT section, result
 FROM (
@@ -218,5 +233,6 @@ FROM (
   UNION ALL SELECT 'engine_and_data_checks', result FROM engine_checks
   UNION ALL SELECT 'administrator_assignments', result FROM admin_checks
   UNION ALL SELECT 'migration_history_relations', result FROM migration_relation_checks
+  UNION ALL SELECT 'workspace_candidate_relations_without_workspace_id', result FROM workspace_candidate_checks
 ) consolidated
 ORDER BY section;
