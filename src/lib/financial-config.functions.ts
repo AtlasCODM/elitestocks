@@ -6,7 +6,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 import { requireAdmin } from "./admin.functions";
 import { FinancialConfigurationSchema } from "./financial-config";
-import { loadFinancialConfiguration } from "./financial-config.server";
 import { FinancialProfitSchema } from "./financial-amount";
 
 export type FinancialConfigurationAudit = {
@@ -17,26 +16,37 @@ export type FinancialConfigurationAudit = {
   created_at: string;
 };
 
-export const getFinancialConfiguration = createServerFn({ method: "GET" }).handler(async () => {
-  const serverNow = new Date().toISOString();
-  try {
-    return { config: await loadFinancialConfiguration(), available: true, serverNow };
-  } catch {
-    // Do not disclose credentials, SQL details or internal server errors to public visitors.
-    return {
-      config: null,
-      available: false,
-      serverNow,
-      error: "Investment configuration is temporarily unavailable. Please try again later.",
-    };
-  }
-});
+export const getFinancialConfiguration = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const serverNow = new Date().toISOString();
+    try {
+      const { data, error } = await (context.supabase as any).rpc("get_investment_configuration");
+      if (error || !data) throw new Error("configuration unavailable");
+      return {
+        config: FinancialConfigurationSchema.parse(data.config),
+        available: true,
+        serverNow,
+      };
+    } catch {
+      return {
+        config: null,
+        available: false,
+        serverNow,
+        error: "Investment configuration is temporarily unavailable. Please try again later.",
+      };
+    }
+  });
 
 export const getAdminFinancialConfiguration = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context.supabase, context.userId);
-    const config = await loadFinancialConfiguration();
+    const { data: configData, error: configError } = await (context.supabase as any).rpc(
+      "get_investment_configuration",
+    );
+    if (configError || !configData) throw new Error("Unable to load financial configuration");
+    const config = FinancialConfigurationSchema.parse(configData.config);
     const { data, error } = await (supabaseAdmin as any)
       .from("investment_engine_audit")
       .select("id,actor_id,old_config,new_config,created_at")

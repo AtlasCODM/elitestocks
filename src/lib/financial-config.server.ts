@@ -1,13 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- additive migration types are isolated at this boundary. */
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { FinancialConfigurationSchema } from "./financial-config";
 
-export async function loadFinancialConfiguration() {
-  const { data, error } = await (supabaseAdmin as any)
-    .from("investment_engine_config")
-    .select("config,version")
-    .eq("id", true)
-    .single();
+export async function loadFinancialConfiguration(supabase: any) {
+  const { data, error } = await supabase.rpc("get_investment_configuration");
   if (error || !data)
     throw new Error(
       "Investment configuration is unavailable. Apply the investment engine migration and verify database access.",

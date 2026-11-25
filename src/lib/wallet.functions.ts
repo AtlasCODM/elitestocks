@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- workspace columns are additive to generated legacy types. */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { summarizePosition } from "./investment-engine";
 
 export const getWalletState = createServerFn({ method: "GET" })
@@ -9,27 +8,27 @@ export const getWalletState = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const serverNow = new Date().toISOString();
     const userId = context.userId;
-    const admin = supabaseAdmin as any;
+    const client = context.supabase as any;
     const [wallets, txs, investments, copies] = await Promise.all([
-      admin
+      client
         .from("wallets")
         .select("*")
         .eq("workspace_id", context.workspaceId)
         .eq("user_id", userId),
-      admin
+      client
         .from("transactions")
         .select("*")
         .eq("workspace_id", context.workspaceId)
         .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(100),
-      admin
+      client
         .from("investments")
         .select("*")
         .eq("workspace_id", context.workspaceId)
         .eq("user_id", userId)
         .order("created_at", { ascending: false }),
-      admin
+      client
         .from("copy_trades")
         .select("*, trader:traders(name,handle,badge)")
         .eq("workspace_id", context.workspaceId)

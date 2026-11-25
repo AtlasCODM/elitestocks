@@ -4,7 +4,6 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 import { getServerSupabaseConfiguration } from "@/lib/config.server";
-import { supabaseAdmin } from "./client.server";
 import { PRIMARY_WORKSPACE_ID } from "./workspace";
 
 function requestedWorkspaceId(request: Request) {
@@ -16,7 +15,7 @@ function requestedWorkspaceId(request: Request) {
   return match ? decodeURIComponent(match[1]) : PRIMARY_WORKSPACE_ID;
 }
 
-async function resolveWorkspace(userId: string, request: Request) {
+async function resolveWorkspace(supabase: any, userId: string, request: Request) {
   const workspaceId = requestedWorkspaceId(request);
   if (
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(workspaceId)
@@ -24,24 +23,18 @@ async function resolveWorkspace(userId: string, request: Request) {
     throw new Error("Invalid workspace context");
   }
 
-  const admin = supabaseAdmin as any;
-  const [{ data: workspace, error: workspaceError }, { data: role, error: roleError }] =
+  const [{ data: workspace, error: workspaceError }, { data: admin, error: roleError }] =
     await Promise.all([
-      admin.from("workspaces").select("id,is_active").eq("id", workspaceId).maybeSingle(),
-      admin
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .eq("role", "admin")
-        .maybeSingle(),
+      supabase.from("workspaces").select("id,is_active").eq("id", workspaceId).maybeSingle(),
+      supabase.rpc("is_admin"),
     ]);
   if (workspaceError) throw new Error(`Unable to resolve workspace: ${workspaceError.message}`);
   if (roleError) throw new Error(`Unable to resolve administrator role: ${roleError.message}`);
   if (!workspace?.is_active) throw new Error("Workspace is not active");
 
-  const isAdmin = role?.role === "admin";
+  const isAdmin = admin === true;
   if (!isAdmin) {
-    const { data: membership, error } = await admin
+    const { data: membership, error } = await supabase
       .from("workspace_members")
       .select("workspace_id")
       .eq("workspace_id", workspaceId)
@@ -85,7 +78,7 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     if (error || !data?.claims) throw new Error("Unauthorized: Invalid token");
     if (!data.claims.sub) throw new Error("Unauthorized: No user ID found in token");
 
-    const workspace = await resolveWorkspace(data.claims.sub, request);
+    const workspace = await resolveWorkspace(supabase, data.claims.sub, request);
 
     return next({
       context: {

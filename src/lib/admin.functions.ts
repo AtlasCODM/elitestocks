@@ -29,9 +29,11 @@ export async function requireAdmin(authClient: any, userId: string) {
 
 export const getAdminAccess = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => ({
-    isAdmin: await isAdminUser(null, context.userId),
-  }));
+  .handler(async ({ context }) => {
+    const { data, error } = await (context.supabase as any).rpc("is_admin");
+    if (error) throw new Error(`Unable to verify administrator role: ${error.message}`);
+    return { isAdmin: data === true };
+  });
 
 export const getAdminState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -52,10 +54,7 @@ export const getAdminState = createServerFn({ method: "GET" })
     if (settingsError) throw new Error(settingsError.message);
     const userIds = [...new Set((transactions ?? []).map((tx: any) => tx.user_id))];
     const { data: profiles } = userIds.length
-      ? await admin
-          .from("profiles")
-          .select("id,email,display_name,status")
-          .in("id", userIds)
+      ? await admin.from("profiles").select("id,email,display_name,status").in("id", userIds)
       : { data: [] };
     return { transactions: transactions ?? [], settings, profiles: profiles ?? [] };
   });
@@ -71,14 +70,11 @@ export const updateAdminTransaction = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await requireAdmin(context.supabase, context.userId);
     const admin = (await getSupabaseAdmin()) as any;
-    const { data: transaction, error } = await admin.rpc(
-      "admin_update_transaction",
-      {
-        p_transaction_id: data.transactionId,
-        p_action: data.action,
-        p_admin_id: context.userId,
-      },
-    );
+    const { data: transaction, error } = await admin.rpc("admin_update_transaction", {
+      p_transaction_id: data.transactionId,
+      p_action: data.action,
+      p_admin_id: context.userId,
+    });
     if (error) throw new Error(error.message);
     return transaction;
   });
