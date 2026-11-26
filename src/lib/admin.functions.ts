@@ -5,20 +5,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getSupabaseAdmin } from "@/integrations/supabase/admin-access";
 
 async function isAdminUser(authClient: any, userId: string) {
-  // The bearer token is verified by requireSupabaseAuth. Use the trusted
-  // service-role client for the role lookup because user_roles is intentionally
-  // protected by RLS and must not be treated as a browser-readable table.
-  // `userId` always comes from the verified request context, never the browser.
-  void authClient;
-  const admin = (await getSupabaseAdmin()) as any;
-  const { data, error } = await admin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .limit(1);
+  // The bearer token is verified by requireSupabaseAuth. PostgreSQL evaluates
+  // auth.uid() inside the authorization function; browser-supplied identities
+  // are never used for the role decision.
+  void userId;
+  const { data, error } = await authClient.rpc("is_admin");
   if (error) throw new Error(`Unable to verify administrator role: ${error.message}`);
-  return Array.isArray(data) && data.length > 0;
+  return data === true;
 }
 
 export async function requireAdmin(authClient: any, userId: string) {
@@ -39,7 +32,7 @@ export const getAdminState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await requireAdmin(context.supabase, context.userId);
-    const admin = (await getSupabaseAdmin()) as any;
+    const admin = context.supabase as any;
     const [{ data: transactions, error: txError }, { data: settings, error: settingsError }] =
       await Promise.all([
         admin

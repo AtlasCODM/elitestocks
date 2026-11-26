@@ -37,7 +37,7 @@ test("configuration/performance writes require authoritative administrator check
     const block = content.split(`export const ${name}`)[1]?.split("export const ")[0];
     assert.match(block, /requireAdmin\(context\.supabase, context\.userId\)/);
   }
-  assert.match(source("src/lib/admin.functions.ts"), /\.from\("user_roles"\)/);
+  assert.match(source("src/lib/admin.functions.ts"), /authClient\.rpc\("is_admin"\)/);
 });
 test("mutating job endpoint is no longer an unauthenticated GET", () => {
   const content = source("src/routes/api/public/hooks/process-jobs.ts");
