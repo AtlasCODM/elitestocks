@@ -1,6 +1,16 @@
-import { timingSafeEqual } from "node:crypto";
 import { createFileRoute } from "@tanstack/react-router";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { getSupabaseAdmin } from "@/integrations/supabase/admin-access";
+
+function constantTimeEqual(expected: string, provided: string) {
+  const expectedBytes = new TextEncoder().encode(expected);
+  const providedBytes = new TextEncoder().encode(provided);
+  const width = Math.max(expectedBytes.length, providedBytes.length);
+  let difference = expectedBytes.length ^ providedBytes.length;
+  for (let index = 0; index < width; index += 1) {
+    difference |= (expectedBytes[index] ?? 0) ^ (providedBytes[index] ?? 0);
+  }
+  return difference === 0;
+}
 
 function hasValidJobSecret(request: Request) {
   const expected = process.env.INVESTMENT_JOB_SECRET;
@@ -8,18 +18,11 @@ function hasValidJobSecret(request: Request) {
   const header = request.headers.get("authorization") ?? "";
   const prefix = "Bearer ";
   const providedToken = header.startsWith(prefix) ? header.slice(prefix.length) : "";
-  const expectedBytes = Buffer.from(expected, "utf8");
-  const providedBytes = Buffer.from(providedToken, "utf8");
-  const width = Math.max(expectedBytes.length, providedBytes.length);
-  const expectedPadded = Buffer.alloc(width);
-  const providedPadded = Buffer.alloc(width);
-  expectedBytes.copy(expectedPadded);
-  providedBytes.copy(providedPadded);
-  const equal = width > 0 && timingSafeEqual(expectedPadded, providedPadded);
-  return { configured: true, valid: equal && expectedBytes.length === providedBytes.length };
+  return { configured: true, valid: constantTimeEqual(expected, providedToken) };
 }
 
 async function processJobs() {
+  const supabaseAdmin = await getSupabaseAdmin();
   const { data, error } = await supabaseAdmin.rpc("engine_process_jobs");
   if (error) throw new Error(error.message);
   return data;
@@ -28,7 +31,7 @@ async function processJobs() {
 export const Route = createFileRoute("/api/public/hooks/process-jobs")({
   server: {
     handlers: {
-      POST: async ({ request }) => {
+      POST: async ({ request }: { request: Request }) => {
         const auth = hasValidJobSecret(request);
         if (!auth.configured) {
           return Response.json(
@@ -54,4 +57,4 @@ export const Route = createFileRoute("/api/public/hooks/process-jobs")({
         ),
     },
   },
-});
+} as never);

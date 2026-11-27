@@ -50,6 +50,7 @@ export const getAdminFinancialConfiguration = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin as any)
       .from("investment_engine_audit")
       .select("id,actor_id,old_config,new_config,created_at")
+      .eq("workspace_id", context.workspaceId)
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error("Unable to load financial configuration history");

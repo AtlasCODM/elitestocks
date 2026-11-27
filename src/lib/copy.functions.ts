@@ -2,12 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { PRIMARY_WORKSPACE_ID } from "@/integrations/supabase/workspace";
 import { FinancialAmountSchema } from "./financial-amount";
 
 export const listTraders = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await supabaseAdmin
+  // workspace_id was added after the generated legacy trader type.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabaseAdmin as any)
     .from("traders")
     .select("*")
+    .eq("workspace_id", PRIMARY_WORKSPACE_ID)
     .order("roi", { ascending: false });
   if (error) throw new Error(error.message);
   return { traders: data ?? [] };

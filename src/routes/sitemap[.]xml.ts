@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type {} from "@tanstack/react-start";
 
 const BASE_URL = "";
 
@@ -29,4 +28,4 @@ export const Route = createFileRoute("/sitemap.xml")({
       },
     },
   },
-});
+} as never);
